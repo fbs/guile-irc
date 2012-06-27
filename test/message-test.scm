@@ -46,6 +46,7 @@
 (let ([m (msg:make-message ":server.org NOTICE Auth :*** Looking !")])
   (expect string=? (msg:prefix m) "server.org" "Testing prefix")
   (expect eq? (msg:command m) (string->symbol "NOTICE") "Testing command")
+  (expect number? (msg:time m) "Testing timestamp")
   (let ([p (msg:parameters m)])
     (expect string=? (msg:middle p) "Auth" "Testing middle")
     (expect string=? (msg:trailing p) "*** Looking !" "Testing tail")))
