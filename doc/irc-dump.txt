@@ -1,0 +1,10 @@
+:moorcock.freenode.net NOTICE * :*** Looking up your hostname...
+:moorcock.freenode.net NOTICE * :*** Checking Ident
+:moorcock.freenode.net NOTICE * :*** Found your hostname
+NICK foeps
+:moorcock.freenode.net NOTICE * :*** No Ident response
+USER foeps * * :foeps
+:moorcock.freenode.net 001 foeps :Welcome to the freenode Internet Relay Chat Network foeps
+:moorcock.freenode.net 002 foeps :Your host is moorcock.freenode.net[50.22.136.18/6667], running version ircd-seven-1.1.3
+:moorcock.freenode.net 003 foeps :This server was created Tue Feb 7 2012 at 15:05:50 CST
+PING :moorcock.freenode.net
