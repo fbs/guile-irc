@@ -34,7 +34,7 @@
 (define-syntax expect
   (syntax-rules (not)
     ((_ fn e msg)
-     (if (not (fn msg))
+     (if (not (fn e))
 	 (throw 'error (make-error (list (quote fn) e) msg))))
     ((_ fn e1 e2 msg)
      (if (not (fn e1 e2))
