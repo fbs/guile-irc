@@ -48,7 +48,7 @@
   "Return #t if hook `hook' is empty, #f otherwise."
   (null? (hook:alist hook)))
 
-(define (add-tagged-hook! hook proc tag . append-p)
+(define* (add-tagged-hook! hook proc #:optional tag append-p)
   "Add procedure `proc' to the hook `hook'. Keyword `tag' is used to identify
 the handler and is needed to remove the handler. If `tag' is #f no tag will
 be used. If `append' is true the procedure is added the the end, otherwise
@@ -59,9 +59,9 @@ be used. If `append' is true the procedure is added the the end, otherwise
 	    [alist (hook:alist hook)])
 	(hook:set-alist!
 	 hook
-	 (if (not (null? append-p))
-	     (append alist (list value))
-	     (cons   value alist))))))
+	 (if append-p
+	     (cons   value alist)
+	     (append alist (list value)))))))
 
 (define (remove-tagged-hook! hook tag)
   "Remove all hooks with tag `tag'. The return value is not specified"
