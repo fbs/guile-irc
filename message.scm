@@ -55,12 +55,16 @@
 (define middle car)
 (define trailing cadr)
 
-(define message-object (make-record-type "irc:message"
-					 '(prefix
-					   command
-					   parameters
-					   time
-					   raw)))
+(define message-object (make-record-type
+			"irc:message"
+			'(prefix
+			  command
+			  parameters
+			  time
+			  raw)
+			(lambda (obj port)
+			  (format port "#<irc:message ~a>"
+				  ((record-accessor message-object 'time) obj)))))
 
 (define message? (record-predicate message-object))
 (define prefix (record-accessor message-object 'prefix))
