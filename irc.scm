@@ -38,11 +38,16 @@
 	    do-connect
 	    do-register
 	    do-quit
+	    do-privmsg
+	    do-command
+	    do-listen
+	    do-wait
+	    do-runloop
 	    do-part
 	    do-join
-	    do-privmsg
-	    do-raw
-	    do-topic))
+	    install-ping-handler
+	    install-printer
+	    ))
 
 (use-modules ((irc message)
 	     #:renamer (symbol-prefix-proc 'msg:))
