@@ -24,7 +24,8 @@
 	    remove-tagged-hook!
 	    reset-tagged-hook!
 	    run-tagged-hook
-	    tagged-hook->alist))
+	    tagged-hook->alist
+	    find-tagged-hook))
 
 (define tagged-hook-object
   (make-record-type
