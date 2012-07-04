@@ -108,16 +108,16 @@
 (define (make-channel-table)
   (make-hash-table 31))
 
-(define (channel-add table channel)
+(define (channel-add! table channel)
   (let ([chan (symbolize channel)])
     (if (not chan)
-	(irc-type-error "channel-add" "string or symbol" channel)
+	(irc-type-error "channel-add!" "string or symbol" channel)
 	(hash-set! table chan #t))))
 
-(define (channel-remove table channel)
+(define (channel-remove! table channel)
   (let ([chan (symbolize channel)])
     (if (not chan)
-	(irc-type-error "channel-remove" "string or symbol" channel)
+	(irc-type-error "channel-remove!" "string or symbol" channel)
 	(hash-remove! table chan))))
 
 (define channel-clear! hash-clear!)
@@ -141,16 +141,17 @@
   ((record-modifier irc-object 'filter) obj identity))
 
 (define (send-message obj msg . args)
-  "Format `args' into `msg' and append newline to it before sending it to the server."
-  (let ([socket (_socket obj)])
-    (apply format `(,socket ,msg ,@args))
-    (send socket "\r\n")
-    ;; todo check errors
-))
+  (send-raw obj (apply format #f msg args) #t))
 
-(define (send-raw obj msg)
-  "Send the message 'as-is'."
-  (send (_socket obj) msg))
+(define* (send-raw obj msg #:optional crlf)
+  "Send message string `msg' to `obj'. If crlf is #t append \r\n to the string."
+  (if (connected? obj)
+      (if crlf
+	  (send (_socket obj) (string-append msg "\r\n"))
+	  (send (_socket obj) msg))
+      (irc-error "send-raw: irc-object ~a is not connected to a server." obj)))
+
+
 
 (define (try-nick obj nick)
   (send-message obj "NICK ~a" nick)
@@ -283,9 +284,11 @@ returns #f, else #t."
 
 (define (do-quit obj . msg)
   "Send QUIT to the server and clean up."
-  (if (null? msg)
-      (send-message obj "QUIT :~a" *quitmsg*)
-      (send-message obj "QUIT :~a" msg))
+  (if (connected? obj)
+      (begin (if (null? msg)
+		 (send-message obj "QUIT :~a" *quitmsg*)
+		 (send-message obj "QUIT :~a" msg))
+	     (cleanup-irc-object obj)))
   (cleanup-irc-object obj))
 
 (define (do-privmsg obj receiver msg)
