@@ -31,7 +31,8 @@
 	    middle
 	    trailing
 	    symbolize
-	    make-parser test-irc-msg))
+	    make-parser
+	    print-message))
 
 ;; <message> ::=
 ;;     [':' <prefix> <SPACE> ] <command> <params> <crlf>
@@ -72,6 +73,9 @@
 (define parameters (record-accessor message-object 'parameters))
 (define time  (record-accessor message-object 'time))
 (define raw  (record-accessor message-object 'raw))
+
+(define* (print-message msg #:optional (port current-output-port))
+  (format port "~a\n" (raw msg)))
 
 (define* (make-message-object #:key prefix command parameters time raw)
   ((record-constructor message-object)
