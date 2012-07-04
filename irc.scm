@@ -17,7 +17,7 @@
 (define-module (irc irc)
   #:version (0 0)
   #:use-module ((irc message)
-		#:renamer (symbol-prefix-proc 'irc:))
+		#:renamer (symbol-prefix-proc 'msg:))
   #:use-module (irc tagged-hook)
   #:use-module (irc error)
   #:use-module (ice-9 format)
@@ -29,9 +29,7 @@
 	    connected?
 	    channels-list
 	    in-channel?
-
 	    make-irc-object
-
 	    set-server!
 	    set-realname!
 	    set-password!
@@ -46,6 +44,13 @@
 	    do-raw
 	    do-topic))
 
+(use-modules ((irc message)
+	     #:renamer (symbol-prefix-proc 'msg:))
+	     (irc tagged-hook)
+	     (irc error)
+	     (ice-9 format)
+	     (ice-9 rdelim))
+
 ;;;; Some constants
 (define *nick* "bot")
 (define *server* "localhost")
@@ -55,18 +60,26 @@
 
 ;;;; macros
 
-
 ;;;; Data types
 
-;; Channels are stored in a hashmap <symbol channel name, #t>
-;; Raw-hooks are ran on each incomming message before they're parsed.
-;; log-handler same
-;; hooks are user specified hooks that are matched against parts of the parsed message.
+;; Channels:  Hashmap          containing all the joined channels.
+;; Connected: Boolean          #t if connected to a server #f otherwise.
+;; Filter:    Procedure        filter out messages that can be ignored.
+;; Hooks:     Tagged-hook      hooks to run on messages.
+;; Nick:      String Symbol    irc nickname
+;; Hostname:  String Symbol    irc hostname
+;; password:  String Symbol #f irc password
+;; port:      number           irc port
+;; realname:  String Symbol    irc realname
+;; server:    String           irc server url
+;; socket:    Socket           Socket
 (define irc-object
   (make-record-type
    "irc"
    '(channels
      connected
+     filter
+     hooks
      hostname
      nick
      password
@@ -74,17 +87,14 @@
      realname
      server
      socket
-
-     hooks
-     log-handler
-     raw-hooks)
+     )
    (lambda (obj port)
      (format port "#<~A irc object>"
 	     ((record-accessor irc-object 'server) obj)))))
 
 ;;;; Internal procedures
 (define channels	 (record-accessor irc-object 'channels))
-(define raw-hooks	 (record-accessor irc-object 'raw-hooks))
+(define _filter		 (record-accessor irc-object 'filter))
 (define hooks		 (record-accessor irc-object 'hooks))
 (define _socket		 (record-accessor irc-object 'socket))
 
@@ -127,9 +137,8 @@
   ((record-modifier irc-object 'connected) obj #f)
   (close-port (_socket obj))
   ((record-modifier irc-object 'socket) obj #f)
-  (reset-hook! (raw-hooks obj))
-  (reset-hook! (hooks obj))
-  ((record-modifier irc-object 'log-handler) #f))
+  (reset-message-hook! obj)
+  ((record-modifier irc-object 'filter) obj identity))
 
 (define (send-message obj msg . args)
   "Format `args' into `msg' and append newline to it before sending it to the server."
@@ -163,6 +172,8 @@
   ((record-constructor irc-object)
    (make-channel-table)	;; channels
    #f			;; connected
+   #f			;; filter
+   (make-tagged-hook)	;; hooks
    hostname		;; hostname
    nick			;; nick
    password		;; password
@@ -170,9 +181,6 @@
    realname		;; realname
    server		;; server
    #f			;; socket
-   (make-hook 4)	;; hooks
-   #f			;; log-handler
-   (make-hook 1)	;; raw-hook
    ))
 
 (define (channels->list obj)
@@ -183,9 +191,17 @@
   "Check if channel `chan' in irc-object `obj' is joined."
   (channel-ref (channels obj) chan))
 
+(define (set-port! obj port)
+  "If not yet connected change port to `port'."
+  (if (connected? obj)
+      (irc-error "set-port!: impossible to change port when connected.\n")
+      (if (not (number? port))
+	  (irc-type-error "set-port!" "number" port)
+	  ((record-modifier irc-object 'port) obj port))))
+
 (define (set-server! obj srv)
   "If not yet connected change server to `srv'."
-  (if (not (connected? obj))
+  (if (connected? obj)
       (irc-error "set-server!: impossible to change server when connected.\n")
       (if (not (string? srv))
 	  (irc-type-error "set-server!" "string" srv)
@@ -193,7 +209,7 @@
 
 (define (set-realname! obj rn)
   "If not yet connected change realname to `rn'."
-  (if (not (connected? obj))
+  (if (connected? obj)
       (irc-error "set-realname!: impossible to change realname when connected.\n")
       (if (not (string? rn))
 	  (irc-type-error "set-realname!" "string" rn)
@@ -201,7 +217,7 @@
 
 (define (set-password! obj pwd)
   "If not yet connected change password to `pwd'."
-  (if (not (connected? obj))
+  (if (connected? obj)
       (irc-error "set-password!: impossible to change password when connected.\n")
       (if (not (string? pwd))
 	  (irc-type-error "set-password!" "string" pwd)
@@ -209,7 +225,7 @@
 
 (define (set-hostname! obj hn)
   "If not yet connected change hostname to `hn'."
-  (if (not (connected? obj))
+  (if (connected? obj)
       (irc-error "set-hostname!: impossible to change hostname when connected.\n")
       (if (not (string? hn))
 	  (irc-type-error "set-hostname!" "string" hn)
@@ -229,7 +245,6 @@ returns #f, else #t."
 (define (do-connect obj)
   "Try to connect object to the specified server."
   (define (_connect ircobj)
-    "Setup a connection with the server and"
     (let* ([ai (car (getaddrinfo (server ircobj) "ircd"))]
 	   [s  (socket (addrinfo:fam ai)
 		       (addrinfo:socktype ai)
@@ -263,8 +278,8 @@ returns #f, else #t."
       #f)
   (send-pass)
   (send-nick)
-  (send-user)
-  #t)
+  (send-user))
+
 
 (define (do-quit obj . msg)
   "Send QUIT to the server and clean up."
@@ -275,12 +290,123 @@ returns #f, else #t."
 
 (define (do-privmsg obj receiver msg)
   "Send message `msg' to `reciever' (channel or user)."
-  (send-message obj "PRIVMSG ~a :~a" receiver msg)
-  ;; TODO: check success
-  )
+  (send-message obj "PRIVMSG ~a :~a" receiver msg))
+
+(define* (do-command obj command #:optional msg)
+  "Send command `command` to the server, with `msg' as optional string. The
+return value is non specified."
+  (send-message obj "~a ~a" (string-upcase command) msg))
 
 (define (do-raw obj msg)
-  "Send unformatted message `msg' to the server."
+  "Send unformatted message `msg' to the server. The return value is not
+specified."
   (send-raw obj msg))
 
-(define (do-topic obj chan . msg) #f)
+(define (do-listen obj)
+  "Return a parsed message (see the message module) if there is data available,
+#f otherwise."
+  (if (not (connected? obj))
+      #f
+      (let ([s (_socket obj)])
+	(and (char-ready? s) (msg:make-message (read-line s))))))
+
+(define (do-wait obj)
+  (let loop ([msg (do-listen obj)])
+    (if msg
+	msg
+	(begin (usleep 1000) (loop (do-listen obj))))))
+
+(define (do-runloop obj)
+  ;; (if (not (or (exists-message-hook? obj 'ping)
+  ;;	       (exists-message-hook? obj 'PING)))
+  ;;     (install-ping-handler obj))
+  (let ([sock (_socket obj)])
+    (while (not (port-closed? sock))
+      (run-message-hook obj (do-wait obj)))))
+
+;; (define* (add-raw-hook! obj proc #:optional tag append)
+;;   "Add procedure `proc' to the 'raw-hook'. If `tag' is not #f, tag will be
+;; attached to `proc' before storing it. If append is #t the procedure will
+;; be added to the end of the hook, otherwise its added to front."
+;;   (add-tagged-hook! (raw-hooks obj) proc tag append))
+
+;; (define (remove-raw-hook! obj tag)
+;;   "Remove all hooks with tag `tag' from the raw-hook of irc-object `obj'.
+;;  The return value is not specified."
+;;   (remove-tagged-hook! (raw-hooks obj) tag))
+
+;; (define (run-raw-hook obj . args)
+;;   "Apply all procedures in the raw-hook of irc-object `obj' to arguments
+;; `args' in first to last order. The return value is not specified."
+;;   (apply run-tagged-hook (raw-hooks obj)  args))
+
+;; (define (reset-raw-hook obj)
+;;   "Remove all the raw-hooks from irc-object `obj'."
+;;   (reset-tagged-hook! (raw-hooks obj)))
+
+(define (set-filter! obj proc)
+  "Use procedure `proc' as message filter. `proc' is called as (proc msg)
+and should return a new/modifier message or #f."
+  (if (not (procedure? proc))
+      (irc-type-error "install-filter!" 'proc "procedure" proc)
+      ((record-modifier irc-object 'filter) obj proc)))
+
+(define (reset-filter! obj)
+  "Remove the installed filter."
+  ((record-modifier irc-object 'filter) identity))
+
+(define* (add-message-hook!
+	  obj proc #:key sender receiver command middle trailing tag append)
+  (let ([handler
+	 (lambda (msg)
+	   (let ([prefix (msg:prefix msg)]
+		 [cmd (msg:command msg)]
+		 [param (msg:parameters msg)])
+	     (let ([mid (msg:middle param)]
+		   [trail (msg:trailing param)])
+	       (and
+		(or (not sender)
+		    (if (procedure? sender)
+			(sender prefix)
+			(string-contains prefix sender))
+		    (string-contains prefix sender))
+		(or (not receiver)
+		    (if (procedure? receiver)
+			(receiver prefix)
+			(string-contains prefix receiver)))
+		(or (not command)
+		    (if (procedure? command)
+			(command cmd)
+			(eq? command cmd)))
+		(or (not middle)
+		    (if (procedure? middle)
+			(middle mid)
+			(string-contains mid middle)))
+		(or (not trailing)
+		    (if (procedure? trailing)
+			(trailing trail)
+			(string-contains trail trailing)))
+		(proc msg)))))])
+    (add-tagged-hook! (hooks obj) handler tag append)))
+
+(define (exists-message-hook? obj tag)
+  "Returns #t if a hook with tag `tag' exists, #f otherwise."
+  #f)
+
+(define (remove-message-hook! obj tag)
+  (remove-tagged-hook! (hooks obj) tag))
+
+(define (run-message-hook obj . args)
+  (apply run-tagged-hook (hooks obj) args))
+
+(define (reset-message-hook! obj)
+  "Remove all the message-hooks from irc-object `obj'."
+  (reset-tagged-hook! (hooks obj)))
+
+(define (install-ping-handler obj)
+  (let ([ping-handler
+	 (lambda (msg)
+	   (do-command obj "PONG" (string-append
+				   ":"
+				   (msg:middle (msg:parameters msg)))))])
+    (add-message-hook! obj ping-handler #:command 'PING #:tag 'ping)))
