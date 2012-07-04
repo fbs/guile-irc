@@ -333,26 +333,6 @@ return value is non specified."
     (while (not (port-closed? sock))
       (run-message-hook obj (do-wait obj)))))
 
-;; (define* (add-raw-hook! obj proc #:optional tag append)
-;;   "Add procedure `proc' to the 'raw-hook'. If `tag' is not #f, tag will be
-;; attached to `proc' before storing it. If append is #t the procedure will
-;; be added to the end of the hook, otherwise its added to front."
-;;   (add-tagged-hook! (raw-hooks obj) proc tag append))
-
-;; (define (remove-raw-hook! obj tag)
-;;   "Remove all hooks with tag `tag' from the raw-hook of irc-object `obj'.
-;;  The return value is not specified."
-;;   (remove-tagged-hook! (raw-hooks obj) tag))
-
-;; (define (run-raw-hook obj . args)
-;;   "Apply all procedures in the raw-hook of irc-object `obj' to arguments
-;; `args' in first to last order. The return value is not specified."
-;;   (apply run-tagged-hook (raw-hooks obj)  args))
-
-;; (define (reset-raw-hook obj)
-;;   "Remove all the raw-hooks from irc-object `obj'."
-;;   (reset-tagged-hook! (raw-hooks obj)))
-
 (define (set-filter! obj proc)
   "Use procedure `proc' as message filter. `proc' is called as (proc msg)
 and should return a new/modifier message or #f."
