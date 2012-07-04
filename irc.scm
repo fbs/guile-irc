@@ -386,9 +386,12 @@ Procedures will be added to the front of the hook unless append is not #f."
 	       (proc msg)))))])
     (add-tagged-hook! (hooks obj) handler tag append)))
 
+
 (define (exists-message-hook? obj tag)
   "Returns #t if a hook with tag `tag' exists, #f otherwise."
-  #f)
+  (if (find-tagged-hook (hooks obj) tag)
+      #t
+      #f))
 
 (define (remove-message-hook! obj tag)
   "Remove all procedures in the hook that match tag `tag'."
