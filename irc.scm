@@ -391,9 +391,11 @@ Procedures will be added to the front of the hook unless append is not #f."
   #f)
 
 (define (remove-message-hook! obj tag)
+  "Remove all procedures in the hook that match tag `tag'."
   (remove-tagged-hook! (hooks obj) tag))
 
 (define (run-message-hook obj . args)
+  "Apply arguments `arg' to all the procedures in the hook."
   (apply run-tagged-hook (hooks obj) args))
 
 (define (reset-message-hook! obj)
