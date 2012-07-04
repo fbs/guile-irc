@@ -51,8 +51,6 @@
 ;; <crlf> ::=
 ;;     CR LF
 
-(define test-irc-msg ":test!test@123.456.789.234.spam.dump.nl PRIVMSG #bot :spam")
-
 (define (middle param)
   (if (pair? param)
       (car param)
