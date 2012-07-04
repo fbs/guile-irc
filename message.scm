@@ -53,8 +53,16 @@
 
 (define test-irc-msg ":test!test@123.456.789.234.spam.dump.nl PRIVMSG #bot :spam")
 
-(define middle car)
-(define trailing cadr)
+(define (middle param)
+  (if (pair? param)
+      (car param)
+      param))
+
+(define (trailing param)
+  (let ([t (if (pair? param) (cdr param) '())])
+    (if (pair? t)
+	(car t)
+	'())))
 
 (define message-object (make-record-type
 			"irc:message"
