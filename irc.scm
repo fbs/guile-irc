@@ -345,37 +345,45 @@ return value is non specified."
   ((record-modifier irc-object 'filter) identity))
 
 (define* (add-message-hook!
-	  obj proc #:key sender receiver command middle trailing tag append)
+	  obj proc #:key tag append)
+  "Install procedure `proc' as new message-hook. proc will be called as
+ (proc irc-message).
+
+If a tag is given it will be used to identify the procedure. If not tag is set
+ or when the tag is #f no tag will be used. Note that it is impossible to
+ remove procedures without tags from the hook (unless you reset the hook).
+
+Procedures will be added to the front of the hook unless append is not #f."
+    (add-tagged-hook! (hooks obj) proc tag append))
+
+(define* (add-simple-message-hook!
+	 obj proc #:key sender receiver command middle trailing tag append)
   (let ([handler
-	 (lambda (msg)
-	   (let ([prefix (msg:prefix msg)]
-		 [cmd (msg:command msg)]
-		 [param (msg:parameters msg)])
-	     (let ([mid (msg:middle param)]
-		   [trail (msg:trailing param)])
-	       (and
-		(or (not sender)
-		    (if (procedure? sender)
-			(sender prefix)
-			(string-contains prefix sender))
-		    (string-contains prefix sender))
-		(or (not receiver)
-		    (if (procedure? receiver)
-			(receiver prefix)
-			(string-contains prefix receiver)))
-		(or (not command)
-		    (if (procedure? command)
-			(command cmd)
-			(eq? command cmd)))
-		(or (not middle)
-		    (if (procedure? middle)
-			(middle mid)
-			(string-contains mid middle)))
-		(or (not trailing)
-		    (if (procedure? trailing)
-			(trailing trail)
-			(string-contains trail trailing)))
-		(proc msg)))))])
+	(lambda (msg)
+	  (let ([prefix (msg:prefix msg)]
+		[cmd (msg:command msg)]
+		[param (msg:parameters msg)])
+	    (let ([mid (msg:middle param)]
+		  [trail (msg:trailing param)])
+	      (and
+	       (or (not sender)
+		   (if (procedure? sender)
+		       (sender prefix)
+		       (string-contains prefix sender))
+		   (string-contains prefix sender))
+	       (or (not receiver)
+		   (if (procedure? receiver)
+		       (receiver middle)
+		       (string-contains middle receiver)))
+	       (or (not command)
+		   (if (procedure? command)
+		       (command cmd)
+		       (eq? command cmd)))
+	       (or (not trailing)
+		   (if (procedure? trailing)
+		       (trailing trail)
+		       (string-contains trail trailing)))
+	       (proc msg)))))])
     (add-tagged-hook! (hooks obj) handler tag append)))
 
 (define (exists-message-hook? obj tag)
