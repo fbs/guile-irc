@@ -24,7 +24,7 @@
 	    remove-tagged-hook!
 	    reset-tagged-hook!
 	    run-tagged-hook
-	    tagged-hook->alist
+	    tagged-hook->list
 	    find-tagged-hook))
 
 (define tagged-hook-object
@@ -93,6 +93,6 @@ be used. If `append' is true the procedure is added the the end, otherwise
   (let ([alist (hook:alist hook)])
     (assoc 'c (filter pair? alist))))
 
-(define (tagged-hook->alist hook)
-  "Convert the hook `hook' to a association list."
+(define (tagged-hook->list hook)
+  "Convert the hook `hook' to a list."
   (hook:alist hook))
