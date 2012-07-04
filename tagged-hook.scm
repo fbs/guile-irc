@@ -87,6 +87,11 @@ be used. If `append' is true the procedure is added the the end, otherwise
 	 (apply proc args)))
      alist)))
 
+(define (find-tagged-hook hook tag)
+  "Return the pair (tag . procedure) if a hook with tag `tag' exists, #f otherwise."
+  (let ([alist (hook:alist hook)])
+    (assoc 'c (filter pair? alist))))
+
 (define (tagged-hook->alist hook)
   "Convert the hook `hook' to a association list."
   (hook:alist hook))
