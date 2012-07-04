@@ -335,7 +335,7 @@ return value is non specified."
 
 (define (set-filter! obj proc)
   "Use procedure `proc' as message filter. `proc' is called as (proc msg)
-and should return a new/modifier message or #f."
+ and should return a new/modifier message or #f."
   (if (not (procedure? proc))
       (irc-type-error "install-filter!" 'proc "procedure" proc)
       ((record-modifier irc-object 'filter) obj proc)))
