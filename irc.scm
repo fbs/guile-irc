@@ -300,11 +300,6 @@ returns #f, else #t."
 return value is non specified."
   (send-message obj "~a ~a" (string-upcase command) msg))
 
-(define (do-raw obj msg)
-  "Send unformatted message `msg' to the server. The return value is not
-specified."
-  (send-raw obj msg))
-
 (define (do-listen obj)
   "Return a parsed message (see the message module) if there is data available,
 #f otherwise."
@@ -318,6 +313,17 @@ specified."
     (if msg
 	msg
 	(begin (usleep 1000) (loop (do-listen obj))))))
+
+(define (do-join obj chan)
+  "Try to join channel `chan'."
+  (send-message obj "JOIN ~a" chan)
+  (channel-add! (channels obj) chan))
+
+(define (do-part obj chan)
+  "Part channel `chan'."
+  (if (in-channel? obj chan)
+      (send-message obj "PART ~a" chan)
+      #f))
 
 (define (do-runloop obj)
   ;; (if (not (or (exists-message-hook? obj 'ping)
