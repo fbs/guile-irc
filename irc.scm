@@ -131,6 +131,11 @@
    ((string? c) (string->symbol c))
    (else #f)))
 
+(define (stringify c)
+  (cond
+   ((string? c) c)
+   ((symbol? c) (symbol->string c))
+   (else #f)))
 
 (define (cleanup-irc-object obj)
   "Reset the object."
