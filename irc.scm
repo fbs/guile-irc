@@ -94,8 +94,11 @@
      socket
      )
    (lambda (obj port)
-     (format port "#<~A irc object>"
-	     ((record-accessor irc-object 'server) obj)))))
+     (format port "#<~A~c irc object>"
+	     ((record-accessor irc-object 'server) obj)
+	     (if ((record-accessor irc-object 'connected) obj)
+		 #\!
+		 #\?)))))
 
 ;;;; Internal procedures
 (define channels	 (record-accessor irc-object 'channels))
