@@ -42,9 +42,6 @@
 	    exists-message-hook?
 	    hostname
 	    in-channel?
-	    install-hello-handler
-	    install-ping-handler
-	    install-printer
 	    irc-object?
 	    make-irc-object
 	    nick
@@ -52,7 +49,6 @@
 	    port
 	    realname
 	    remove-message-hook!
-	    remove-printer
 	    reset-filter!
 	    reset-message-hook!
 	    run-message-hook
@@ -403,33 +399,3 @@ Procedures will be added to the front of the hook unless append is not #f."
 (define (reset-message-hook! obj)
   "Remove all the message-hooks from irc-object `obj'."
   (reset-tagged-hook! (hooks obj)))
-
-(define (install-ping-handler obj)
-  (let ([ping-handler
-	 (lambda (msg)
-	   (do-command obj "PONG" (string-append
-				   ":"
-				   (msg:middle (msg:parameters msg)))))])
-    (add-simple-message-hook! obj ping-handler #:tag 'ping #:command 'PING)))
-
-(define* (install-printer obj #:key verbose (port (current-output-port)))
-  (let ([printer
-	 (if verbose
-	     (lambda (msg)
-	       (format port "raw: ~a\nprefix: ~a\ncommand: ~a\nparameters: ~a\n"
-		       (msg:raw msg) (msg:prefix msg) (msg:command msg) (msg:parameters msg)))
-	     (lambda (msg)
-	       (format port "~a\n" (msg:raw msg))))])
-    (add-message-hook! obj printer #:tag 'printer)))
-
-(define (remove-printer obj)
-  (remove-message-hook! obj 'printer))
-
-(define (install-hello-handler obj)
-  (let ([handler
-	 (lambda (msg)
-	   (let ([body (msg:trailing (msg:parameters msg))])
-	     (if (and body (string-contains body ",hello"))
-		 (do-privmsg obj (msg:middle (msg:parameters msg))
-			     "hi master"))))])
-    (add-simple-message-hook! obj handler #:tag 'hello #:command 'PRIVMSG)))
