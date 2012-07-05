@@ -19,6 +19,7 @@
   #:use-module ((irc message)
 		#:renamer (symbol-prefix-proc 'msg:))
   #:use-module (irc tagged-hook)
+  #:use-module (irc channel)
   #:use-module (irc error)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
@@ -69,6 +70,7 @@
 (use-modules ((irc message)
 	     #:renamer (symbol-prefix-proc 'msg:))
 	     (irc tagged-hook)
+	     (irc channel)
 	     (irc error)
 	     (ice-9 format)
 	     (ice-9 rdelim))
@@ -129,32 +131,6 @@
    ((string? c) (string->symbol c))
    (else #f)))
 
-;;; Channel table
-(define (make-channel-table)
-  (make-hash-table 31))
-
-(define (channel-add! table channel)
-  (let ([chan (symbolize channel)])
-    (if (not chan)
-	(irc-type-error "channel-add!" "string or symbol" channel)
-	(hash-set! table chan #t))))
-
-(define (channel-remove! table channel)
-  (let ([chan (symbolize channel)])
-    (if (not chan)
-	(irc-type-error "channel-remove!" "string or symbol" channel)
-	(hash-remove! table chan))))
-
-(define channel-clear! hash-clear!)
-
-(define (channel-table->list table)
-  (hash-map->list (lambda (x y) x) table))
-
-(define (channel-ref table channel)
-  (let ([chan (symbolize channel)])
-    (if (not chan)
-	(irc-type-error "channel-ref" "string or symbol" channel)
-	(hash-ref table chan))))
 
 (define (cleanup-irc-object obj)
   "Reset the object."
