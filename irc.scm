@@ -167,7 +167,7 @@
 (define hostname	 (record-accessor irc-object 'hostname))
 (define connected?	 (record-accessor irc-object 'connected))
 
-(define* (make-irc-object #:key (nick *nick*) (realname *nick*) (server *server*)
+(define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
 			  (port *port*) (password '()) (hostname *hostname*))
   ((record-constructor irc-object)
    (make-channel-table)	;; channels
