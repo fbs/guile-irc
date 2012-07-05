@@ -90,11 +90,11 @@
 ;; Connected: Boolean          #t if connected to a server #f otherwise.
 ;; Filter:    Procedure        filter out messages that can be ignored.
 ;; Hooks:     Tagged-hook      hooks to run on messages.
-;; Nick:      String Symbol    irc nickname
-;; Hostname:  String Symbol    irc hostname
-;; password:  String Symbol #f irc password
+;; Nick:      String           irc nickname
+;; Hostname:  String           irc hostname
+;; password:  String #f        irc password
 ;; port:      number           irc port
-;; realname:  String Symbol    irc realname
+;; realname:  String           irc realname
 ;; server:    String           irc server url
 ;; socket:    Socket           Socket
 (define irc-object
@@ -188,48 +188,50 @@
   (channel-table->list (channels obj)))
 
 (define (in-channel? obj chan)
-  "Check if channel `chan' in irc-object `obj' is joined."
-  (channel-ref (channels obj) chan))
+  "Check if channel `chan' in irc-object `obj' is joined." 
+  (cond
+   ((string? chan) (channel-ref (channels obj) chan))
+   ((symbol? chan) (channel-ref (channels obj) (symbol->string chan)))
+   (else (irc-type-error "in-channel?" 'chan "string or symbol" chan))))
 
 (define (set-port! obj port)
   "If not yet connected change port to `port'."
-  (if (connected? obj)
-      (irc-error "set-port!: impossible to change port when connected.\n")
-      (if (not (number? port))
-	  (irc-type-error "set-port!" "number" port)
-	  ((record-modifier irc-object 'port) obj port))))
+  (cond
+   ((connected? obj) (irc-error "set-port!: impossible to change port when connected.\n"))
+   ((number? port) (record-modifier irc-object 'port) obj port)
+   (else (irc-type-error "set-port!" 'port "number" port))))
 
 (define (set-server! obj srv)
   "If not yet connected change server to `srv'."
-  (if (connected? obj)
-      (irc-error "set-server!: impossible to change server when connected.\n")
-      (if (not (string? srv))
-	  (irc-type-error "set-server!" "string" srv)
-	  ((record-modifier irc-object 'server) obj srv))))
+  (cond
+   ((connected? obj) (irc-error "set-server!: impossible to change server when connected.\n"))
+   ((string? srv)    ((record-modifier irc-object 'server) obj srv))
+   ((symbol? srv)    ((record-modifier irc-object 'server) obj (symbol->string srv)))
+   (else (irc-type-error "set-server!" "string" srv))))
 
 (define (set-realname! obj rn)
   "If not yet connected change realname to `rn'."
-  (if (connected? obj)
-      (irc-error "set-realname!: impossible to change realname when connected.\n")
-      (if (not (string? rn))
-	  (irc-type-error "set-realname!" "string" rn)
-	  ((record-modifier irc-object 'realname) obj rn))))
+  (cond
+   ((connected? obj) (irc-error "set-realname!: impossible to change realname when connected.\n"))
+   ((string? rn)     ((record-modifier irc-object 'realname) obj rn))
+   ((symbol? rn)     ((record-modifier irc-object 'realname) obj (symbol->string rn)))
+   (else  (irc-type-error "set-realname!" "string" rn))))
 
 (define (set-password! obj pwd)
   "If not yet connected change password to `pwd'."
-  (if (connected? obj)
-      (irc-error "set-password!: impossible to change password when connected.\n")
-      (if (not (string? pwd))
-	  (irc-type-error "set-password!" "string" pwd)
-	  ((record-modifier irc-object 'password) obj pwd))))
+  (cond
+   ((connected? obj) (irc-error "set-password!: impossible to change password when connected.\n"))
+   ((string? pwd)    ((record-modifier irc-object 'password) obj pwd))
+   ((symbol? pwd)    ((((record-modifier irc-object 'password) obj (string->symbol pwd)))))
+   (else (irc-type-error "set-password!" "string" pwd))))
 
 (define (set-hostname! obj hn)
   "If not yet connected change hostname to `hn'."
-  (if (connected? obj)
-      (irc-error "set-hostname!: impossible to change hostname when connected.\n")
-      (if (not (string? hn))
-	  (irc-type-error "set-hostname!" "string" hn)
-	  ((record-modifier irc-object 'hostname) obj hn))))
+  (cond
+   ((connected? obj) (irc-error "set-hostname!: impossible to change hostname when connected.\n"))
+   ((string? hn)     ((record-modifier irc-object 'hostname) obj hn))
+   ((symbol? hn)     ((record-modifier irc-object 'hostname) obj (symbol->string hn)))
+   (else	  (irc-type-error "set-hostname!" "string" hn))))
 
 (define (do-nick obj nick)
   "Try to change the nickname into `nick'. When the nick is already taken keep the old nick.
@@ -238,9 +240,7 @@ returns #f, else #t."
       (irc-type-error "set-nick!" "string" nick)
       (if (not (connected? obj))
 	  ((record-modifier irc-object 'nick) obj nick)
-	  (if (try-nick obj nick)
-	      ((record-modifier irc-object 'nick) obj nick)
-	      #f))))
+	  (do-command 'NICK nick))))
 
 (define (do-connect obj)
   "Try to connect object to the specified server."
