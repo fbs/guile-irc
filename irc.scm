@@ -23,47 +23,47 @@
   #:use-module (irc error)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
-  #:export (connect 
+  #:export (connect
 	    add-message-hook!
 	    add-simple-message-hook!
-	    channels->list 
-	    connected?       
+	    channels->list
+	    connected?
 	    do-command
 	    do-connect
-	    do-join 
-	    do-listen 
-	    do-nick 
-	    do-part 
+	    do-join
+	    do-listen
+	    do-nick
+	    do-part
 	    do-privmsg
-	    do-quit 
+	    do-quit
 	    do-register
 	    do-runloop
-	    do-wait 
+	    do-wait
 	    exists-message-hook?
-	    hostname         
-	    in-channel? 
+	    hostname
+	    in-channel?
 	    install-hello-handler
 	    install-ping-handler
-	    install-printer 
-	    irc-object?      
-	    make-irc-object 
-	    nick             
-	    password         
-	    port             
-	    realname         
+	    install-printer
+	    irc-object?
+	    make-irc-object
+	    nick
+	    password
+	    port
+	    realname
 	    remove-message-hook!
-	    remove-printer 
+	    remove-printer
 	    reset-filter!
 	    reset-message-hook!
-	    run-message-hook 
+	    run-message-hook
 	    send-nick
 	    send-pass
 	    send-user
-	    server           
+	    server
 	    set-filter!
 	    set-hostname!
 	    set-password!
-	    set-port! 
+	    set-port!
 	    set-realname!
 	    set-server!))
 
@@ -188,7 +188,7 @@
   (channel-table->list (channels obj)))
 
 (define (in-channel? obj chan)
-  "Check if channel `chan' in irc-object `obj' is joined." 
+  "Check if channel `chan' in irc-object `obj' is joined."
   (cond
    ((string? chan) (channel-ref (channels obj) chan))
    ((symbol? chan) (channel-ref (channels obj) (symbol->string chan)))
