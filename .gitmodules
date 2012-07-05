@@ -1,0 +1,3 @@
+[submodule "gitorious-wiki"]
+	path = gitorious-wiki
+	url = git@gitorious.org:guile-irc/guile-irc-gitorious-wiki.git
