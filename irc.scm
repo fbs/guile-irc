@@ -294,10 +294,10 @@ returns #f, else #t."
   "Send message `msg' to `reciever' (channel or user)."
   (send-message obj "PRIVMSG ~a :~a" receiver msg))
 
-(define* (do-command obj command #:optional msg)
-  "Send command `command` to the server, with `msg' as optional string. The
+(define* (do-command obj command #:optional body)
+  "Send command `command` to the server, with `body' as optional body. The
 return value is non specified."
-  (send-message obj "~a ~a" (string-upcase command) msg))
+  (send-message obj "~a ~a" (string-upcase command) body))
 
 (define (do-listen obj)
   "Return a parsed message (see the message module) if there is data available,
