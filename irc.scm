@@ -157,13 +157,6 @@
 	  (send (_socket obj) msg))
       (irc-error "send-raw: irc-object ~a is not connected to a server." obj)))
 
-
-
-(define (try-nick obj nick)
-  (send-message obj "NICK ~a" nick)
-  ;; TODO: parse results and check if nick is accepted
-  )
-
 ;;; Public functions
 (define irc-object?	 (record-predicate irc-object))
 (define nick		 (record-accessor irc-object 'nick))
