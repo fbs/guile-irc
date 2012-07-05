@@ -22,32 +22,49 @@
   #:use-module (irc error)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
-  #:export (nick
-	    password
-	    realname
-	    server
-	    connected?
-	    channels-list
-	    in-channel?
-	    make-irc-object
-	    set-server!
-	    set-realname!
-	    set-password!
-	    set-hostname!
-	    do-nick
-	    do-connect
-	    do-register
-	    do-quit
-	    do-privmsg
+  #:export (connect 
+	    add-message-hook!
+	    add-simple-message-hook!
+	    channels->list 
+	    connected?       
 	    do-command
-	    do-listen
-	    do-wait
+	    do-connect
+	    do-join 
+	    do-listen 
+	    do-nick 
+	    do-part 
+	    do-privmsg
+	    do-quit 
+	    do-register
 	    do-runloop
-	    do-part
-	    do-join
+	    do-wait 
+	    exists-message-hook?
+	    hostname         
+	    in-channel? 
+	    install-hello-handler
 	    install-ping-handler
-	    install-printer
-	    ))
+	    install-printer 
+	    irc-object?      
+	    make-irc-object 
+	    nick             
+	    password         
+	    port             
+	    realname         
+	    remove-message-hook!
+	    remove-printer 
+	    reset-filter!
+	    reset-message-hook!
+	    run-message-hook 
+	    send-nick
+	    send-pass
+	    send-user
+	    server           
+	    set-filter!
+	    set-hostname!
+	    set-password!
+	    set-port! 
+	    set-realname!
+	    set-server!))
 
 (use-modules ((irc message)
 	     #:renamer (symbol-prefix-proc 'msg:))
