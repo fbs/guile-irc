@@ -22,6 +22,8 @@
   #:export (install-ping-handler!
 	    install-printer!
 	    install-hello-handler!
+	    install-eof-handler!
+	    remove-eof-handler!
 	    remove-printer!
 	    remove-ping-handler!
 	    remove-hello-handler!))
@@ -52,6 +54,12 @@
 		 (do-privmsg obj (msg:middle (msg:parameters msg))
 			     reply))))])
     (add-simple-message-hook! obj handler #:tag 'hello #:command 'PRIVMSG)))
+
+(define (install-eof-handler! obj)
+  (set-eof-handler! obj do-close))
+
+(define (remove-eof-handler! obj)
+  (reset-eof-handler! obj))
 
 (define (remove-hello-handler! obj)
   (remove-hello-handler! obj 'hello))
