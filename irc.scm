@@ -23,11 +23,11 @@
   #:use-module (irc error)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
-  #:export (connect
-	    add-message-hook!
+  #:export (add-message-hook!
 	    add-simple-message-hook!
 	    channels->list
 	    connected?
+	    do-close
 	    do-command
 	    do-connect
 	    do-join
@@ -43,20 +43,24 @@
 	    hostname
 	    in-channel?
 	    irc-object?
-	    make-irc-object
+	    make-irc
 	    nick
 	    password
 	    port
 	    realname
 	    remove-message-hook!
-	    reset-filter!
+	    reset-input-filter!
+	    reset-output-filter!
+	    reset-eof-handler!
 	    reset-message-hook!
 	    run-message-hook
 	    send-nick
 	    send-pass
 	    send-user
 	    server
-	    set-filter!
+	    set-eof-handler!
+	    set-input-filter!
+	    set-output-filter!
 	    set-hostname!
 	    set-password!
 	    set-port!
@@ -81,33 +85,36 @@
 ;;;; macros
 
 ;;;; Data types
+;; Channels:   Hashmap          containing all the joined channels.
+;; Connected:   Boolean          #t if connected to a server #f otherwise.
+;; eof-handler: Procedure        procedure to run when eof is detected. 
+;; Hooks:       Tagged-hook      hooks to run on messages.
+;; Hostname:    String           irc hostname
+;; in-filter:   Procedure        filter to run on incomming messages.
+;; Nick:        String           irc nickname
+;; out-filter:  Procedure        filter to run on outgoing messages.
+;; password:    String #f        irc password
+;; port:        Number           irc port
+;; realname:    String           irc realname
+;; server:      String           irc server url
+;; socket:      Socket           Socket
 
-;; Channels:  Hashmap          containing all the joined channels.
-;; Connected: Boolean          #t if connected to a server #f otherwise.
-;; Filter:    Procedure        filter out messages that can be ignored.
-;; Hooks:     Tagged-hook      hooks to run on messages.
-;; Nick:      String           irc nickname
-;; Hostname:  String           irc hostname
-;; password:  String #f        irc password
-;; port:      number           irc port
-;; realname:  String           irc realname
-;; server:    String           irc server url
-;; socket:    Socket           Socket
 (define irc-object
   (make-record-type
    "irc"
    '(channels
      connected
-     filter
+     eof-handler
      hooks
      hostname
+     in-filter
      nick
+     out-filter
      password
      port
      realname
      server
-     socket
-     )
+     socket)
    (lambda (obj port)
      (format port "#<~A~c irc object>"
 	     ((record-accessor irc-object 'server) obj)
@@ -117,17 +124,21 @@
 
 ;;;; Internal procedures
 (define channels	 (record-accessor irc-object 'channels))
-(define _filter		 (record-accessor irc-object 'filter))
+(define eof-handler      (record-accessor irc-object 'eof-handler))
+(define in-filter	 (record-accessor irc-object 'in-filter))
+(define out-filter	 (record-accessor irc-object 'out-filter))
 (define hooks		 (record-accessor irc-object 'hooks))
 (define _socket		 (record-accessor irc-object 'socket))
 
 (define (symbolize c)
+"Symbolize returns a symbol if `c' is a symbol or string, #f otherwise."
   (cond
    ((symbol? c) c)
    ((string? c) (string->symbol c))
    (else #f)))
 
 (define (stringify c)
+"Stringify returns a string if `c' is a symbol or string, #f otherwise."
   (cond
    ((string? c) c)
    ((symbol? c) (symbol->string c))
@@ -140,20 +151,34 @@
   (close-port (_socket obj))
   ((record-modifier irc-object 'socket) obj #f)
   (reset-message-hook! obj)
-  ((record-modifier irc-object 'filter) obj identity))
+  ((record-modifier irc-object 'in-filter) obj identity)
+  ((record-modifier irc-object 'out-filter) obj identity)
+  ((record-modifier irc-object 'eof-handler) obj identity))
 
 (define (send-message obj msg . args)
   (send-raw obj (apply format #f msg args) #t))
 
 (define* (send-raw obj msg #:optional crlf)
   "Send message string `msg' to `obj'. If crlf is #t append \r\n to the string."
-  (if (connected? obj)
+  (let ([m ((out-filter obj) msg)])
+    (cond
+     ((not (connected? obj)) (irc-error "send-raw: irc-object ~a is not connected to a server." obj))
+     ((not m) #f)
+     (else
       (if crlf
-	  (send (_socket obj) (string-append msg "\r\n"))
-	  (send (_socket obj) msg))
-      (irc-error "send-raw: irc-object ~a is not connected to a server." obj)))
+	    (send (_socket obj) (string-append msg "\r\n"))
+	    (send (_socket obj) msg))))))
+
+(define (read-message obj)
+  (let* ([s (_socket obj)]
+	 [m (and (char-ready? s) (read-line s))])
+    (cond
+     ((eof-object? m) ((eof-handler con) m))
+     (m ((in-filter obj) (msg:make-message m)))
+     (else #f))))
 
 ;;; Public functions
+
 (define irc-object?	 (record-predicate irc-object))
 (define nick		 (record-accessor irc-object 'nick))
 (define password	 (record-accessor irc-object 'password))
@@ -165,13 +190,22 @@
 
 (define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
 			  (port *port*) (password '()) (hostname *hostname*))
+  "Create a new irc object.
+nick: string
+realname: string
+server: string
+port: integer
+password: string
+hostname: string."
   ((record-constructor irc-object)
    (make-channel-table)	;; channels
    #f			;; connected
-   #f			;; filter
+   identity             ;; eof-handler
    (make-tagged-hook)	;; hooks
    hostname		;; hostname
+   identity             ;; in-filter
    nick			;; nick
+   identity             ;; out-filter
    password		;; password
    port			;; port
    realname		;; realname
@@ -261,7 +295,6 @@ returns #f, else #t."
 	  (irc-error "do-connect: failed to connect to server ~a.\n" (server obj))))))
 
 (define (do-register obj)
-  ;; FIXME
   "Send password, nick and user commands."
   (define (send-pass)
     (if (not (null? (password obj)))
@@ -276,6 +309,9 @@ returns #f, else #t."
   (send-nick)
   (send-user))
 
+(define (do-close obj)
+  "Close the connection without sending QUIT."
+  (cleanup-irc-object obj))
 
 (define (do-quit obj . msg)
   "Send QUIT to the server and clean up."
@@ -291,28 +327,36 @@ returns #f, else #t."
   (send-message obj "PRIVMSG ~a :~a" receiver msg))
 
 (define* (do-command obj command #:optional body)
-  "Send command `command` to the server, with `body' as optional body. The
+  "Send command `command' to the server, with `body' as optional body. The
 return value is non specified."
-  (send-message obj "~a ~a" (string-upcase command) body))
+  (let ([cmd (stringify command)])
+    (if cmd
+	(send-message obj "~a ~a" (string-upcase command) body)
+	(irc-type-error "do-command" 'command "string or symbol" command))))
 
 (define (do-listen obj)
   "Return a parsed message (see the message module) if there is data available,
-#f otherwise."
+#f otherwise." 
   (if (not (connected? obj))
       #f
-      (let ([s (_socket obj)])
-	(and (char-ready? s) (msg:make-message (read-line s))))))
+      (read-message obj)))
 
 (define (do-wait obj)
-  (let loop ([msg (do-listen obj)])
-    (if msg
-	msg
-	(begin (usleep 1000) (loop (do-listen obj))))))
+  "Wait till data is available."
+  (let loop ([m (do-listen obj)])
+    (if m
+	m
+	(loop (do-listen obj)))))
 
 (define (do-join obj chan)
   "Try to join channel `chan'."
   (send-message obj "JOIN ~a" chan)
   (channel-add! (channels obj) chan))
+
+(define (do-runloop obj)
+  (let ([sock (_socket obj)])
+    (while (not (port-closed? sock))
+      (run-message-hook obj (do-wait obj)))))
 
 (define (do-part obj chan)
   "Part channel `chan'."
@@ -320,24 +364,37 @@ return value is non specified."
       (send-message obj "PART ~a" chan)
       #f))
 
-(define (do-runloop obj)
-  ;; (if (not (or (exists-message-hook? obj 'ping)
-  ;;	       (exists-message-hook? obj 'PING)))
-  ;;     (install-ping-handler obj))
-  (let ([sock (_socket obj)])
-    (while (not (port-closed? sock))
-      (run-message-hook obj (do-wait obj)))))
-
-(define (set-filter! obj proc)
-  "Use procedure `proc' as message filter. `proc' is called as (proc msg)
- and should return a new/modifier message or #f."
+(define (set-input-filter! obj proc)
+  "Use procedure `proc' as input filter. `proc' is called as (proc msg)
+ and should return a irc-message or #f."
   (if (not (procedure? proc))
-      (irc-type-error "install-filter!" 'proc "procedure" proc)
-      ((record-modifier irc-object 'filter) obj proc)))
+      (irc-type-error "set-input-filter!" 'proc "procedure" proc)
+      ((record-modifier irc-object 'in-filter) obj proc)))
 
-(define (reset-filter! obj)
+(define (reset-input-filter! obj)
   "Remove the installed filter."
-  ((record-modifier irc-object 'filter) identity))
+  ((record-modifier irc-object 'in-filter) obj identity))
+
+(define (set-output-filter! obj proc)
+  "Use procedure `proc' as output filter. `proc' is called as (proc msg)
+and should return a irc-message or #f."
+  (if (not (procedure? proc))
+      (irc-type-error "set-output-filter!" 'proc "procedure" proc)
+      ((record-modifier irc-object 'out-filter) obj proc)))
+
+(define (reset-output-filter! obj)
+  "Remove the installed filter."
+  ((record-modifier irc-object 'out-filter) obj identity))
+
+(define (set-eof-handler! obj proc)
+  "Use procedure `proc' as eof-handler. `proc' is called as (proc irc-object)."
+  (if (not (procedure? proc))
+      (irc-type-error "set-eof-handler!" 'proc "procedure" proc)
+      ((record-modifier irc-object 'eof-handler) obj proc)))
+
+(define (reset-eof-handler! obj)
+  "Remove the installed eof-hadler."
+  ((record-modifier irc-object 'eof-handler) obj identity))
 
 (define* (add-message-hook!
 	  obj proc #:key tag append)
