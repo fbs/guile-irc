@@ -61,8 +61,8 @@ be used. If `append' is true the procedure is added the the end, otherwise
 	(hook:set-alist!
 	 hook
 	 (if append-p
-	     (cons   value alist)
-	     (append alist (list value)))))))
+	     (append alist (list value))
+	     (cons   value alist))))))
 
 (define (remove-tagged-hook! hook tag)
   "Remove all hooks with tag `tag'. The return value is not specified"
