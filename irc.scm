@@ -75,12 +75,9 @@
 ;;;; Data types
 ;; Channels:   Hashmap          containing all the joined channels.
 ;; Connected:   Boolean          #t if connected to a server #f otherwise.
-;; eof-handler: Procedure        procedure to run when eof is detected.
 ;; Hooks:       Tagged-hook      hooks to run on messages.
 ;; Hostname:    String           irc hostname
-;; in-filter:   Procedure        filter to run on incomming messages.
 ;; Nick:        String           irc nickname
-;; out-filter:  Procedure        filter to run on outgoing messages.
 ;; password:    String #f        irc password
 ;; port:        Number           irc port
 ;; realname:    String           irc realname
@@ -92,12 +89,9 @@
    "irc"
    '(channels
      connected
-     eof-handler
      hooks
      hostname
-     in-filter
      nick
-     out-filter
      password
      port
      realname
@@ -112,9 +106,6 @@
 
 ;;;; Internal procedures
 (define channels	 (record-accessor irc-object 'channels))
-(define eof-handler      (record-accessor irc-object 'eof-handler))
-(define in-filter	 (record-accessor irc-object 'in-filter))
-(define out-filter	 (record-accessor irc-object 'out-filter))
 (define hooks		 (record-accessor irc-object 'hooks))
 (define _socket		 (record-accessor irc-object 'socket))
 
@@ -151,13 +142,13 @@
   (let* ([s (_socket obj)]
 	 [m (and (char-ready? s) (delete-return (read-line s)))])
     (cond
-     ((eof-object? m) ((eof-handler obj) m))
-     (m ((in-filter obj) (msg:make-message m)))
+     ((eof-object? m) #f)
+     (m (msg:make-message m))
      (else #f))))
 
 (define* (cleanup-irc-object obj #:key (handlers #t))
   "Reset `channels', `connected' and socket to their initial value.
-The default behaviour is to also reset the filters/hooks/handlers. Set handlers
+The default behaviour is to also reset the message-hook. Set handlers
 to #f to disable."
   (channel-clear! (channels obj))
   ((record-modifier irc-object 'connected) obj #f)
@@ -165,9 +156,6 @@ to #f to disable."
   ((record-modifier irc-object 'socket) obj #f)
   (if handlers
       (begin
-	;; (reset-eof-handler! obj)
-	;; (reset-output-filter! obj)
-	;; (reset-input-filter! obj)
 	(reset-message-hook! obj)
 	#t)
       #t))
@@ -195,12 +183,9 @@ hostname: string."
   ((record-constructor irc-object)
    (make-channel-table)	;; channels
    #f			;; connected
-   identity             ;; eof-handler
    (make-tagged-hook)	;; hooks
    hostname		;; hostname
-   identity             ;; in-filter
    nick			;; nick
-   identity             ;; out-filter
    password		;; password
    port			;; port
    realname		;; realname
@@ -307,12 +292,12 @@ returns #f, else #t."
 
 (define* (do-close obj #:key reset-handlers)
   "Close the connection without sending QUIT. If `reset-handlers' is #t also
- remove the installed handlers."
+ rest the message hook."
   (cleanup-irc-object obj #:handlers reset-handlers))
 
 (define* (do-quit obj #:key (quit-msg *quitmsg*) reset-handlers)
-  "Send QUIT to the server and clean up. If `reset-handlers' is #t also remove
- the installed handlers."
+  "Send QUIT to the server and clean up. If `reset-handlers' is #t also reset
+the message hook."
   (if (connected? obj)
       (begin (send-message obj "QUIT :~a" quit-msg)
 	     (cleanup-irc-object obj #:handlers reset-handlers))
@@ -359,38 +344,6 @@ return value is non specified."
   (if (in-channel? obj chan)
       (send-message obj "PART ~a" chan)
       #f))
-
-;; (define (set-input-filter! obj proc)
-;;   "Use procedure `proc' as input filter. `proc' is called as (proc msg)
-;;  and should return a irc-message or #f."
-;;   (if (not (procedure? proc))
-;;       (irc-type-error "set-input-filter!" 'proc "procedure" proc)
-;;       ((record-modifier irc-object 'in-filter) obj proc)))
-
-;; (define (reset-input-filter! obj)
-;;   "Remove the installed filter."
-;;   ((record-modifier irc-object 'in-filter) obj identity))
-
-;; (define (set-output-filter! obj proc)
-;;   "Use procedure `proc' as output filter. `proc' is called as (proc msg)
-;; and should return a irc-message or #f."
-;;   (if (not (procedure? proc))
-;;       (irc-type-error "set-output-filter!" 'proc "procedure" proc)
-;;       ((record-modifier irc-object 'out-filter) obj proc)))
-
-;; (define (reset-output-filter! obj)
-;;   "Remove the installed filter."
-;;   ((record-modifier irc-object 'out-filter) obj identity))
-
-;; (define (set-eof-handler! obj proc)
-;;   "Use procedure `proc' as eof-handler. `proc' is called as (proc irc-object)."
-;;   (if (not (procedure? proc))
-;;       (irc-type-error "set-eof-handler!" 'proc "procedure" proc)
-;;       ((record-modifier irc-object 'eof-handler) obj proc)))
-
-;; (define (reset-eof-handler! obj)
-;;   "Remove the installed eof-hadler."
-;;   ((record-modifier irc-object 'eof-handler) obj identity))
 
 (define* (add-message-hook!
 	  obj proc #:key tag append)
