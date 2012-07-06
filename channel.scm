@@ -15,7 +15,7 @@
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 (define-module (irc channel)
-  #:version (0 0)
+  #:version (0 1)
   #:export (make-channel-table
 	    channel-add!
 	    channel-remove!
