@@ -27,10 +27,10 @@
   (make-hash-table 31))
 
 (define (channel-add! table channel)
-  (hash-set! table chan #t))
+  (hash-set! table channel #t))
 
 (define (channel-remove! table channel)
-  (hash-remove! table chan))
+  (hash-remove! table channel))
 
 (define channel-clear! hash-clear!)
 
@@ -38,4 +38,4 @@
   (hash-map->list (lambda (x y) x) table))
 
 (define (channel-ref table channel)
-  (hash-ref table chan))
+  (hash-ref table channel))
