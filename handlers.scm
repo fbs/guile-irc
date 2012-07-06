@@ -36,33 +36,39 @@
 				   (msg:middle (msg:parameters msg)))))])
     (add-simple-message-hook! obj ping-handler #:tag 'ping #:command 'PING)))
 
-(define* (install-printer! obj #:key verbose (port (current-output-port)))
+
+(define* (install-printer! obj  #:key verbose (port (current-output-port)))
   (let ([printer
 	 (if verbose
 	     (lambda (msg)
 	       (format port "raw: ~a\nprefix: ~a\ncommand: ~a\nparameters: ~a\n"
-		       (msg:raw msg) (msg:prefix msg) (msg:command msg) (msg:parameters msg)))
+		       (msg:raw msg) (msg:prefix msg) (msg:command msg) 
+		       (msg:parameters msg))
+	       msg)
 	     (lambda (msg)
-	       (format port "~a\n" (msg:raw msg))))])
+	       (format port "~a\n" (msg:raw msg))
+	       msg))])
     (add-message-hook! obj printer #:tag 'printer)))
 
-(define* (install-hello-handler! obj #:key (prefix ",") (reply "hello master!"))
+(define* (install-hello-handler! obj #:key (prefix ",") (command "hello") 
+				 (reply "hello master!"))
   (let ([handler
 	 (lambda (msg)
-	   (let ([body (msg:trailing (msg:parameters msg))])
-	     (if (and body (string-contains body (string-append prefix "hello")))
-		 (do-privmsg obj (msg:middle (msg:parameters msg))
-			     reply))))])
-    (add-simple-message-hook! obj handler #:tag 'hello #:command 'PRIVMSG)))
+	   (let ([body (msg:trailing (msg:parameters msg))]
+		 [key (string-append prefix command)])
+	     (if (and body 
+		      (string=? (car (string-split body #\ )) key))
+		 (do-privmsg obj (parse-target obj msg) reply))))])
+    (add-simple-message-hook! obj handler #:command 'PRIVMSG #:tag 'hello)))
 
-(define (install-eof-handler! obj)
-  (set-eof-handler! obj do-close))
+;; (define (install-eof-handler! obj)
+;;   (set-eof-handler! obj do-close))
 
-(define (remove-eof-handler! obj)
-  (reset-eof-handler! obj))
+;; (define (remove-eof-handler! obj)
+;;   (reset-eof-handler! obj))
 
 (define (remove-hello-handler! obj)
-  (remove-hello-handler! obj 'hello))
+  (remove-message-hook! obj 'hello))
 
 (define (remove-printer! obj)
   (remove-message-hook! obj 'printer))
