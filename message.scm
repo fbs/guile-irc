@@ -29,6 +29,8 @@
   #:use-module (ice-9 rdelim)
   #:use-module ((srfi srfi-1)
 		#:select (every any))
+  #:use-module ((srfi srfi-11)
+		 #:select (let-values))
   #:export (command
 	    middle
 	    trailing
@@ -132,20 +134,26 @@
 	  mid
 	  "")))
 
+
+(define (run-parser-regex str)
+  "Only seperated for debugging purposes!"
+  (let ([rx1 (make-regexp "^(:([^ ]+) +)?([^ ]+) +(.+)$")]
+	[rx2 (make-regexp "^([^:]*):?(.+)?$")])
+    (let ([m1 (regexp-exec rx1 str)])
+      (values m1 (regexp-exec rx2 (match:substring m1 4))))))
+
 ;; external
 
 (define (parse-message-string msg)
   "Parse irc message string `msg' and return an irc-message-object."
-  (define rx1 (make-regexp "^(:([^ ]+) +)?([^ ]+) +(.+)$"))
-  (define rx2 (make-regexp "^([^:]*):?(.+)?$"))
   (define (flatten list)
-    (if (= (length list) 1)
-	(car list)
-	list))
+    (case (length list)
+      ((0) #f)
+      ((1) (car list))
+      (else list)))
   (catch #t
     (lambda ()
-      (let* ([m1 (regexp-exec rx1 msg)]
-	     [m2 (regexp-exec rx2 (match:substring m1 4))])
+      (let-values ([(m1 m2) (run-parser-regex msg)])
 	(make-message-object
 	 #:prefix (parse-prefix (match:substring m1 2))
 	 #:command (symbolize (match:substring m1 3))
