@@ -30,7 +30,7 @@
 
 (define (install-ping-handler! obj)
   (let ([ping-handler
-	 (lambda (msg) (do-command obj #:command 'PONG #:middle (msg:parse-target msg)))])
+	 (lambda (msg) (do-command obj #:command 'PONG #:trailing (msg:parse-target msg)))])
     (add-simple-message-hook! obj ping-handler #:tag 'ping #:command 'PING)))
 
 
@@ -47,7 +47,7 @@
 	 (lambda (msg)
 	   (let ([body (msg:trailing msg)]
 		 [key (string-append prefix command)])
-	     (if (and body (string= body key 0 (string-length key)))
+	     (if (and body (string=? (car (string-split body #\ )) key))
 		 (do-privmsg obj (msg:parse-target msg) reply))))])
     (add-simple-message-hook! obj handler #:command 'PRIVMSG #:tag 'hello)))
 

@@ -16,6 +16,12 @@
 
 ;; with some help with dsmith from #guile
 
+;;;;;;;;;;; TODO 
+;;
+;; -fix all error/throw statements.
+;;
+;;;;;;;;;;;
+
 (define-module (irc message)
   #:version (0 1)
   #:use-module (ice-9 regex)
@@ -29,11 +35,13 @@
 	    raw
 	    time
 	    prefix
+	    message?
 	    is-channel?
 	    parse-target
 	    parse-source
 	    make-message
-	    parse-message-string))
+	    parse-message-string
+	    message->string))
 
 ;; <message> ::=
 ;;     [':' <prefix> <SPACE> ] <command> <params> <crlf>
@@ -95,17 +103,19 @@
    nick user hostname server raw))
 
 (define (parse-prefix str)
-  (if (string-contains str "!")
-      (let ([!loc (string-index str #\!)]
-	    [@loc (string-index str #\@)])
-	(make-prefix-object
-	 #:nick (substring str 0 !loc)
-	 #:user (substring str (+ 1 !loc) @loc)
-	 #:hostname (substring str (+ 1 @loc))
-	 #:raw str))
-      (make-prefix-object
-       #:server str
-       #:raw str)))
+  (if (not str)
+      #f
+      (if (string-contains str "!")
+	  (let ([!loc (string-index str #\!)]
+		[@loc (string-index str #\@)])
+	    (make-prefix-object
+	     #:nick (substring str 0 !loc)
+	     #:user (substring str (+ 1 !loc) @loc)
+	     #:hostname (substring str (+ 1 @loc))
+	     #:raw str))
+	  (make-prefix-object
+	   #:server str
+	   #:raw str))))
 
 (define channel-prefixes '(#\# #\& #\! #\+))
 
@@ -113,6 +123,14 @@
   (if (char-numeric? (string-ref cmd 0))
       (string->number cmd)
       (string->symbol (string-upcase cmd))))
+
+(define* (middle->string mid #:key (delimiter ","))
+  "Return middle as a string."
+  (if (list? mid)
+      (string-join mid delimiter)
+      (if mid
+	  mid
+	  "")))
 
 ;; external
 
@@ -131,11 +149,11 @@
 	(make-message-object
 	 #:prefix (parse-prefix (match:substring m1 2))
 	 #:command (symbolize (match:substring m1 3))
-	 #:middle (flatten (delete #f (string-tokenize (match:substring m2 1))))
+	 #:middle (flatten (string-tokenize (match:substring m2 1)))
 	 #:trailing (match:substring m2 2)
 	 #:time (current-time)
 	 #:raw  msg)))
-    (lambda (key . args) #f)))
+    (lambda (key . args) (throw key "UNHANDLED: ~a" args))))
 
 (define* (make-message #:key command middle trailing)
   "Create a new irc message.
@@ -152,6 +170,7 @@ trailing: string."
      (else (throw 'irc-message-error))))
   (define (check-middle middle)
     (cond 
+     ((not middle) #f)
      ((and (list? middle)
 	   (typecheck-list string? middle)) (throw 'irc-message-error))
      ((string? middle) middle)
@@ -170,7 +189,7 @@ trailing: string."
 
 (define (parse-source msg)
   "Find out who send the irc-message."
-  (if (message? msg)
+  (if (and (message? msg) (m:prefix msg))
       (if (m:p:server msg)
 	  (m:p:server msg)
 	  (m:p:user msg))
@@ -182,17 +201,17 @@ trailing: string."
   (if (message? msg)
       (let ([cmd (command msg)]
 	    [middle (middle msg)])
-	(cond ((eq? command msg 'PING) (middle msg))
-	      ((eq? command msg 'PRIVMSG)
-	       (if (is-channel? (middle msg))
-		   (middle msg)
-		   (p:user msg)))
+	(cond ((eq? cmd 'PING) (trailing msg))
+	      ((eq? cmd 'PRIVMSG)
+	       (if (is-channel? middle)
+		   middle
+		   (m:p:user msg)))
 	      (else #f)))
       #f))
 
 (define (is-channel? str)
   "Return #t is string `str' is a valid channel, #f otherwise."
-  (let ([c (string-ref string 0)])
+  (let ([c (string-ref str 0)])
     (->bool (memq c channel-prefixes))))
 
 (define (command msg)
@@ -222,8 +241,18 @@ trailing: string."
   "Return the prefix of irc-message `msg'. If the message was send by as server
  the returnvalue is a string. If the message was send by a user the returnvalue
  is a list of strings: '(nick user host)."
-  (if (m:p:nick msg)
-      (list (m:p:nick msg) (m:p:user msg) (m:p:hostname msg))
-      (m:p:server msg)))
+  (if (m:prefix msg)
+      (if (m:p:nick msg)
+	  (list (m:p:nick msg) (m:p:user msg) (m:p:hostname msg))
+	  (m:p:server msg))
+      #f))
 
-;; TODO fix all error/throw statements.
+(define (message->string msg)
+  (let ([raw (raw msg)]
+	[trail (trailing msg)])
+    (if raw
+	raw
+	(if trail
+	    (format #f "~A ~A :~A" (command msg) (middle->string (middle msg))
+		    (trailing msg))
+	    (format #f "~A ~A" (command msg) (middle->string (middle msg)))))))
