@@ -201,7 +201,9 @@ trailing: string."
       (if (m:p:server msg)
 	  (m:p:server msg)
 	  (m:p:user msg))
-      #f))
+      (if (eq? (command msg) 'PING)
+	  (trailing msg)
+	  #f)))
 
 (define (parse-target msg)
   "Find out who to send a reply to. Note that this only works for PRIVMSG and
@@ -213,7 +215,7 @@ trailing: string."
 	      ((eq? cmd 'PRIVMSG)
 	       (if (is-channel? middle)
 		   middle
-		   (m:p:user msg)))
+		   (parse-source msg)))
 	      (else #f)))
       #f))
 
