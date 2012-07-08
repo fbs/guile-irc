@@ -165,7 +165,7 @@
     (lambda (key . args) (throw key "UNHANDLED: ~a" args))))
 
 (define* (make-message #:key command middle trailing)
-  "Create a new irc message.
+  "Create a new irc-message-object.
 Command: string or number.
 middle: string or list of strings.
 trailing: string."
@@ -269,7 +269,7 @@ trailing: string."
 
 (define (message->string msg)
   "Transform irc-message `message' into a sendable string 
-(i.e. command middle :trailing)."
+ (i.e. command middle :trailing)."
   (let ([raw (raw msg)]
 	[trail (trailing msg)])
     (if raw
