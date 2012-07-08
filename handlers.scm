@@ -30,42 +30,26 @@
 
 (define (install-ping-handler! obj)
   (let ([ping-handler
-	 (lambda (msg)
-	   (do-command obj "PONG" (string-append
-				   ":"
-				   (msg:middle (msg:parameters msg)))))])
+	 (lambda (msg) (do-command obj #:command 'PONG #:middle (msg:parse-target msg)))])
     (add-simple-message-hook! obj ping-handler #:tag 'ping #:command 'PING)))
 
 
-(define* (install-printer! obj  #:key verbose (port (current-output-port)))
+(define* (install-printer! obj  #:key (port (current-output-port)))
   (let ([printer
-	 (if verbose
-	     (lambda (msg)
-	       (format port "raw: ~a\nprefix: ~a\ncommand: ~a\nparameters: ~a\n"
-		       (msg:raw msg) (msg:prefix msg) (msg:command msg) 
-		       (msg:parameters msg))
-	       msg)
-	     (lambda (msg)
-	       (format port "~a\n" (msg:raw msg))
-	       msg))])
+	 (lambda (msg)
+	   (format port "~a\n" (msg:raw msg))
+	   msg)])
     (add-message-hook! obj printer #:tag 'printer)))
 
 (define* (install-hello-handler! obj #:key (prefix ",") (command "hello") 
 				 (reply "hello master!"))
   (let ([handler
 	 (lambda (msg)
-	   (let ([body (msg:trailing (msg:parameters msg))]
+	   (let ([body (msg:trailing msg)]
 		 [key (string-append prefix command)])
-	     (if (and body 
-		      (string=? (car (string-split body #\ )) key))
-		 (do-privmsg obj (parse-target obj msg) reply))))])
+	     (if (and body (string= body key 0 (string-length key)))
+		 (do-privmsg obj (msg:parse-target msg) reply))))])
     (add-simple-message-hook! obj handler #:command 'PRIVMSG #:tag 'hello)))
-
-;; (define (install-eof-handler! obj)
-;;   (set-eof-handler! obj do-close))
-
-;; (define (remove-eof-handler! obj)
-;;   (reset-eof-handler! obj))
 
 (define (remove-hello-handler! obj)
   (remove-message-hook! obj 'hello))

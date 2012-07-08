@@ -47,7 +47,6 @@
 	    nick
 	    password
 	    port
-	    parse-target
 	    realname
 	    remove-message-hook!
 	    reset-message-hook!
@@ -60,8 +59,7 @@
 	    set-password!
 	    set-port!
 	    set-realname!
-	    set-server!
-	    split-prefix))
+	    set-server!))
 
 ;;;; Some constants
 (define *nick* "bot")
@@ -123,27 +121,30 @@
    ((symbol? c) (symbol->string c))
    (else #f)))
 
-(define (send-message obj msg . args)
-  (send-raw obj (apply format #f msg args) #t))
+;; All outgoing irc traffic has to go through send-raw.
 
-(define* (send-raw obj msg #:optional crlf)
-  "Send message string `msg' to `obj'. If crlf is #t append \r\n to the string."
-    (cond
-     ((not (connected? obj)) (irc-error "send-raw: irc-object ~a is not connected to a server." obj))
-     ((not msg) #f)
-     (else
-      (if crlf
-	    (send (_socket obj) (string-append msg "\r\n"))
-	    (send (_socket obj) msg)))))
+(define (send-string obj fmt . args)
+  "Send (format) string `fmt' to the server. The crlf is handled by this
+procedure, so don't add them! Uses (ice-9 format) for the formatting."
+  (send-raw obj (apply format #f fmt args)))
+
+(define (send-message obj msg)
+  "Send irc-message `msg' to the server."
+  (send-raw obj (msg:message->string msg)))
+
+(define (send-raw obj str)
+  "Send string `str' to the server"
+  (let ([msg (string-append str "\r\n")])
+    (send (_socket obj) msg)))
 
 (define (read-message obj)
   (define (delete-return s)
     (string-delete s (string->char-set "\r")))
   (let* ([s (_socket obj)]
-	 [m (and (char-ready? s) (delete-return (read-line s)))])
+	 [m (and (char-ready? s) (read-line s))])
     (cond
      ((eof-object? m) #f)
-     (m (msg:make-message m))
+     (m (msg:parse-message-string (delete-return m)))
      (else #f))))
 
 (define* (cleanup-irc-object obj #:key (handlers #t))
@@ -251,7 +252,7 @@ returns #f, else #t."
       (irc-type-error "set-nick!" "string" nick)
       (if (not (connected? obj))
 	  ((record-modifier irc-object 'nick) obj nick)
-	  (do-command 'NICK nick))))
+	  (do-command obj #:command 'NICK #:middle nick))))
 
 (define (do-connect obj)
   "Try to connect object to the specified server."
@@ -279,18 +280,18 @@ returns #f, else #t."
   "Send password, nick and user commands."
   (define (send-pass)
     (if (not (null? (password obj)))
-	(send-message obj "PASS ~a" (password obj))))
+	(do-command obj #:command 'PASS #:middle (password obj))))
   (define (send-nick)
-    (send-message obj "NICK ~a" (nick obj)))
+    (do-command obj #:command 'NICK #:middle (nick obj)))
   (define (send-user)
-    (send-message obj "USER ~a ~a * :~a" (nick obj) (hostname obj) (realname obj)))
+    (send-string obj "USER ~a ~a * :~a" (nick obj) (hostname obj) (realname obj)))
   (if (not (connected? obj))
       #f)
   (send-pass)
   (send-nick)
   (send-user))
 
-(define* (do-close obj #:key reset-handlers)
+(define* (do-close obj #:optional reset-handlers)
   "Close the connection without sending QUIT. If `reset-handlers' is #t also
  rest the message hook."
   (cleanup-irc-object obj #:handlers reset-handlers))
@@ -299,21 +300,17 @@ returns #f, else #t."
   "Send QUIT to the server and clean up. If `reset-handlers' is #t also reset
 the message hook."
   (if (connected? obj)
-      (begin (send-message obj "QUIT :~a" quit-msg)
-	     (cleanup-irc-object obj #:handlers reset-handlers))
-      (cleanup-irc-object obj #:handlers reset-handlers)))
+      (begin (send-string obj "QUIT :~a" quit-msg)
+	     (do-close obj reset-handlers))
+      (do-close obj reset-handlers)))
 
 (define (do-privmsg obj receiver msg)
   "Send message `msg' to `reciever' (channel or user)."
-  (send-message obj "PRIVMSG ~a :~a" receiver msg))
+  (send-string obj "PRIVMSG ~a :~a" receiver msg))
 
-(define* (do-command obj command #:optional body)
-  "Send command `command' to the server, with `body' as optional body. The
-return value is non specified."
-  (let ([cmd (stringify command)])
-    (if cmd
-	(send-message obj "~a ~a" (string-upcase command) body)
-	(irc-type-error "do-command" 'command "string or symbol" command))))
+(define* (do-command obj #:key command middle trailing)
+  (send-message obj
+   (msg:make-message #:command command #:middle middle #:trailing trailing)))
 
 (define (do-listen obj)
   "Return a parsed message (see the message module) if there is data available,
@@ -331,7 +328,7 @@ return value is non specified."
 
 (define (do-join obj chan)
   "Try to join channel `chan'."
-  (send-message obj "JOIN ~a" chan)
+  (send-string obj "JOIN ~a" chan)
   (channel-add! (channels obj) chan))
 
 (define (do-runloop obj)
@@ -342,7 +339,7 @@ return value is non specified."
 (define (do-part obj chan)
   "Part channel `chan'."
   (if (in-channel? obj chan)
-      (send-message obj "PART ~a" chan)
+      (send-string obj "PART ~a" chan)
       #f))
 
 (define* (add-message-hook!
@@ -361,30 +358,28 @@ Procedures will be added to the front of the hook unless append is not #f."
 	 obj proc #:key sender receiver command middle trailing tag append)
   (let ([handler
 	(lambda (msg)
-	  (let ([prefix (msg:prefix msg)]
-		[cmd (msg:command msg)]
-		[param (msg:parameters msg)])
-	    (let ([mid (msg:middle param)]
-		  [trail (msg:trailing param)])
-	      (and
-	       (or (not sender)
-		   (if (procedure? sender)
-		       (sender prefix)
-		       (string-contains prefix sender))
-		   (string-contains prefix sender))
-	       (or (not receiver)
-		   (if (procedure? receiver)
-		       (receiver middle)
-		       (string-contains middle receiver)))
-	       (or (not command)
-		   (if (procedure? command)
-		       (command cmd)
-		       (eq? command cmd)))
-	       (or (not trailing)
-		   (if (procedure? trailing)
-		       (trailing trail)
-		       (string-contains trail trailing)))
-	       (proc msg)))))])
+	  (let ([cmd (msg:command msg)]
+		[send (msg:parse-source msg)]
+		[rec (msg:middle msg)]
+		[trail (msg:trailing msg)])
+	    (and
+	     (or (not command)
+		 (if (procedure? command)
+		     (command cmd)
+		     (eq? command cmd)))
+	     (or (not sender)
+		 (if (procedure? sender)
+		     (sender send)
+		     (string=? send sender)))
+	     (or (not receiver)
+		 (if (procedure? receiver)
+		     (receiver rec)
+		     (string=? rec receiver)))
+	     (or (not trailing)
+		 (if (procedure? trailing)
+		     (trailing trail)
+		     (string-contains trail trailing)))
+	     (proc msg))))])
     (add-tagged-hook! (hooks obj) handler tag append)))
 
 (define (exists-message-hook? obj tag)
@@ -403,16 +398,3 @@ Procedures will be added to the front of the hook unless append is not #f."
   "Remove all the message-hooks from irc-object `obj'."
   (reset-tagged-hook! (hooks obj)))
 
-(define (split-prefix msg)
-  (let* ([_msg (if (msg:message? msg) (msg:prefix msg) msg)]
-	 [m (string-split  _msg #\@)])
-    (append (string-split (car m) #\!) (cdr m))))
-
-(define (parse-target obj msg)
-  "Figure out who send the message."
-  (let ([n (nick obj)]
-	[middle (msg:middle (msg:parameters msg))]
-	[prefix (msg:prefix msg)])
-    (if (string=? middle n)
-	(car (split-prefix msg))
-	middle)))
