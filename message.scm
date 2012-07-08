@@ -37,6 +37,7 @@
 	    raw
 	    time
 	    prefix
+	    prefix-type
 	    message?
 	    is-channel?
 	    parse-target
@@ -257,7 +258,18 @@ trailing: string."
 	  (m:p:server msg))
       #f))
 
+(define (prefix-type msg)
+"Return 'USER if the message was send by a user (nick!user@host), 'SERVER if it
+ was send by a server, #f otherwise."
+  (if (m:prefix msg)
+      (if (m:p:nick msg)
+	  'USER
+	  'SERVER)
+      #f))
+
 (define (message->string msg)
+  "Transform irc-message `message' into a sendable string 
+(i.e. command middle :trailing)."
   (let ([raw (raw msg)]
 	[trail (trailing msg)])
     (if raw
