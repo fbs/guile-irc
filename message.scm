@@ -225,3 +225,5 @@ trailing: string."
   (if (m:p:nick msg)
       (list (m:p:nick msg) (m:p:user msg) (m:p:hostname msg))
       (m:p:server msg)))
+
+;; TODO fix all error/throw statements.
