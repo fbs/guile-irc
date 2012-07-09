@@ -1,0 +1,6 @@
+- Rate limiting on output. 
+Limit to x messages/second to prevent being kicked from the server. 
+
+- Log handler
+Send all raw in/output through a special logging procedure
+(lambda (direction str) ..).
