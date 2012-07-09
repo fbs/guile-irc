@@ -15,7 +15,7 @@
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 (define-module (irc irc)
-  #:version (0 1)
+  #:version (0 2)
   #:use-module ((irc message)
 		#:renamer (symbol-prefix-proc 'msg:))
   #:use-module (irc tagged-hook)

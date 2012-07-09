@@ -15,7 +15,7 @@
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 (define-module (irc error-code)
-  #:version (0 1)
+  #:version (0 2)
   #:export (lookup-error-code
 	    error-name
 	    error-description))
