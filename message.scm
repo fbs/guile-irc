@@ -146,7 +146,7 @@
 ;; external
 
 (define (parse-message-string msg)
-  "Parse irc message string `msg' and return an irc-message-object."
+  "Parse irc message string @var{msg} and return an irc-message-object."
   (define (flatten list)
     (case (length list)
       ((0) #f)
@@ -221,7 +221,7 @@ trailing: string."
       #f))
 
 (define (is-channel? str)
-  "Return #t is string `str' is a valid channel, #f otherwise."
+  "Return #t is string @var{str} is a valid channel, #f otherwise."
   (let ([c (string-ref str 0)])
     (->bool (memq c channel-prefixes))))
 
@@ -230,7 +230,7 @@ trailing: string."
   ((record-accessor message-object 'command) msg))
 
 (define (middle msg)
-  "Return `middle' of the message. This is either a list of strings or
+  "Return @var{middle} of the message. This is either a list of strings or
  a string if there is only one middle."
   ((record-accessor message-object 'middle) msg))
 
@@ -249,7 +249,7 @@ trailing: string."
   ((record-accessor message-object 'time) msg))
 
 (define (prefix msg)
-  "Return the prefix of irc-message `msg'. If the message was send by as server
+  "Return the prefix of irc-message @var{msg}. If the message was send by as server
  the returnvalue is a string. If the message was send by a user the returnvalue
  is a list of strings: '(nick user host)."
   (if (m:prefix msg)
@@ -268,7 +268,7 @@ trailing: string."
       #f))
 
 (define (message->string msg)
-  "Transform irc-message `message' into a sendable string 
+  "Transform irc-message @var{message} into a sendable string 
  (i.e. command middle :trailing)."
   (let ([raw (raw msg)]
 	[trail (trailing msg)])

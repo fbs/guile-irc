@@ -42,17 +42,17 @@
   ((record-constructor tagged-hook-object) '()))
 
 (define (tagged-hook? hook)
-  "Return #t if `hook' is a tagged hook, #f otherwise."
+  "Return #t if @var{hook} is a tagged hook, #f otherwise."
   ((record-predicate tagged-hook-object) hook))
 
 (define (tagged-hook-empty? hook)
-  "Return #t if hook `hook' is empty, #f otherwise."
+  "Return #t if hook @var{hook} is empty, #f otherwise."
   (null? (hook:alist hook)))
 
 (define* (add-tagged-hook! hook proc #:optional tag append-p)
-  "Add procedure `proc' to the hook `hook'. Keyword `tag' is used to identify
-the handler and is needed to remove the handler. If `tag' is #f no tag will
-be used. If `append' is true the procedure is added the the end, otherwise
+  "Add procedure @var{proc} to the hook @var{hook}. Keyword @var{tag} is used to identify
+the handler and is needed to remove the handler. If @var{tag} is #f no tag will
+be used. If @var{append} is true the procedure is added the the end, otherwise
  it is added to the front. The return value is not specified."
   (if (not (procedure? proc))
       (irc-type-error "add-tagged-hook!" 'proc "procedure" proc)
@@ -65,7 +65,7 @@ be used. If `append' is true the procedure is added the the end, otherwise
 	     (cons   value alist))))))
 
 (define (remove-tagged-hook! hook tag)
-  "Remove all hooks with tag `tag'. The return value is not specified"
+  "Remove all hooks with tag @var{tag}. The return value is not specified"
   (let ([alist (hook:alist hook)])
     (hook:set-alist! hook
      (filter (lambda (val)
@@ -75,12 +75,12 @@ be used. If `append' is true the procedure is added the the end, otherwise
 	     alist))))
 
 (define (reset-tagged-hook! hook)
-  "Remove all procedures from hook `hook'. The return value is not specified."
+  "Remove all procedures from hook @var{hook}. The return value is not specified."
   (hook:set-alist! hook '()))
 
 (define (run-tagged-hook hook . args)
-  "Apply all procedures in hook `hook' in first to last order to the arguments
- `arg'. The return value is not specified."
+  "Apply all procedures in hook @var{hook} in first to last order to the arguments
+ @var{arg}. The return value is not specified."
   (let ([alist (hook:alist hook)])
     (for-each
      (lambda (val)
@@ -89,10 +89,10 @@ be used. If `append' is true the procedure is added the the end, otherwise
      alist)))
 
 (define (find-tagged-hook hook tag)
-  "Return the pair (tag . procedure) if a hook with tag `tag' exists, #f otherwise."
+  "Return the pair (tag . procedure) if a hook with tag @var{tag} exists, #f otherwise."
   (let ([alist (hook:alist hook)])
     (assoc 'c (filter pair? alist))))
 
 (define (tagged-hook->list hook)
-  "Convert the hook `hook' to a list."
+  "Convert the hook @var{hook} to a list."
   (hook:alist hook))
