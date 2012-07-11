@@ -51,9 +51,6 @@
 	    remove-message-hook!
 	    reset-message-hook!
 	    run-message-hook
-	    send-nick
-	    send-pass
-	    send-user
 	    server
 	    set-hostname!
 	    set-password!
@@ -63,6 +60,7 @@
 
 ;;;; Some constants
 (define *nick* "bot")
+(define *realname* "mr bot")
 (define *server* "localhost")
 (define *port* 6667)
 (define *hostname* "localhost")
@@ -121,8 +119,6 @@
    ((symbol? c) (symbol->string c))
    (else #f)))
 
-
-
 (define (send-string obj fmt . args)
   "Send (format) string @var{fmt} to the server. The crlf is handled by this
 procedure, so don't add them! Uses (ice-9 format) for the formatting."
@@ -148,19 +144,14 @@ procedure, so don't add them! Uses (ice-9 format) for the formatting."
      (m (msg:parse-message-string (delete-return m)))
      (else #f))))
 
-(define* (cleanup-irc-object obj #:key (handlers #t))
+(define* (cleanup-irc-object obj)
   "Reset @var{channels}, @var{connected} and socket to their initial value.
 The default behaviour is to also reset the message-hook. Set handlers
 to #f to disable."
   (channel-clear! (channels obj))
   ((record-modifier irc-object 'connected) obj #f)
   (and (_socket obj) (close-port (_socket obj)))
-  ((record-modifier irc-object 'socket) obj #f)
-  (if handlers
-      (begin
-	(reset-message-hook! obj)
-	#t)
-      #t))
+  ((record-modifier irc-object 'socket) obj #f))
 
 (define (irc-object? obj)
   ((record-predicate irc-object) obj))
@@ -174,7 +165,7 @@ to #f to disable."
 (define connected?	 (record-accessor irc-object 'connected))
  
 (define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
-			  (port *port*) (password '()) (hostname *hostname*))
+			  (port *port*) (password #f) (hostname *hostname*))
   "Create a new irc object.
 nick: string
 realname: string
@@ -206,44 +197,53 @@ hostname: string."
    ((symbol? chan) (channel-ref (channels obj) (symbol->string chan)))
    (else (irc-type-error "in-channel?" 'chan "string or symbol" chan))))
 
-(define (set-port! obj port)
-  "If not yet connected change port to @var{port}."
-  (cond
-   ((connected? obj) (irc-error "set-port!: impossible to change port when connected.\n"))
-   ((number? port) ((record-modifier irc-object 'port) obj port))
-   (else (irc-type-error "set-port!" 'port "number" port))))
+(define (set-port! obj var)
+  "If not yet connected change port to @var{var}."
+  (if (connected? obj)
+      (irc-error "set-port!: impossible to change port when connected.")
+      (if (< 0 var 65536)
+	  ((record-modifier irc-object 'port) obj var)
+	  (irc-error "set-port!: invalid port number."))))
 
-(define (set-server! obj srv)
-  "If not yet connected change server to @var{srv}."
-  (cond
-   ((connected? obj) (irc-error "set-server!: impossible to change server when connected.\n"))
-   ((string? srv)    ((record-modifier irc-object 'server) obj srv))
-   ((symbol? srv)    ((record-modifier irc-object 'server) obj (symbol->string srv)))
-   (else (irc-type-error "set-server!" "string" srv))))
+(define (set-server! obj var)
+  "If not yet connected change server to @var{var}."
+  (if (connected? obj)
+      (irc-error "set-server!: impossible to change server when connected.")
+      (if (= 0 (string-length var))
+	  ((record-modifier irc-object 'server) obj *server*)
+	  ((record-modifier irc-object 'server) obj var))))
 
-(define (set-realname! obj rn)
-  "If not yet connected change realname to @var{rn}."
-  (cond
-   ((connected? obj) (irc-error "set-realname!: impossible to change realname when connected.\n"))
-   ((string? rn)     ((record-modifier irc-object 'realname) obj rn))
-   ((symbol? rn)     ((record-modifier irc-object 'realname) obj (symbol->string rn)))
-   (else  (irc-type-error "set-realname!" "string" rn))))
+(define (set-realname! obj var)
+  "If not yet connected change realname to @var{var}."
+  (if (connected? obj)
+      (irc-error "set-realname!: impossible to change realname when connected.")
+      (if (= 0 (string-length var))
+	  ((record-modifier irc-object 'realname) obj *realname*)
+	  ((record-modifier irc-object 'realname) obj var))))
 
-(define (set-password! obj pwd)
-  "If not yet connected change password to @var{pwd}."
-  (cond
-   ((connected? obj) (irc-error "set-password!: impossible to change password when connected.\n"))
-   ((string? pwd)    ((record-modifier irc-object 'password) obj pwd))
-   ((symbol? pwd)    ((((record-modifier irc-object 'password) obj (string->symbol pwd)))))
-   (else (irc-type-error "set-password!" "string" pwd))))
+(define (set-password! obj var)
+  "If not yet connected change password to @var{var}."
+  (if (connected? obj)
+      (irc-error "set-password!: impossible to change password when connected.")
+      (if (= 0 (string-length var))
+	  ((record-modifier irc-object 'password) obj #f)
+	  ((record-modifier irc-object 'password) obj var))))
 
-(define (set-hostname! obj hn)
-  "If not yet connected change hostname to @var{hn}."
-  (cond
-   ((connected? obj) (irc-error "set-hostname!: impossible to change hostname when connected.\n"))
-   ((string? hn)     ((record-modifier irc-object 'hostname) obj hn))
-   ((symbol? hn)     ((record-modifier irc-object 'hostname) obj (symbol->string hn)))
-   (else	  (irc-type-error "set-hostname!" "string" hn))))
+(define (set-hostname! obj var)
+  "If not yet connected change hostname to @var{var}."
+  (if (connected? obj)
+      (irc-error "set-hostname!: impossible to change hostname when connected.")
+      (if (= 0 (string-length var))
+	  ((record-modifier irc-object 'hostname) obj *hostname*)
+	  ((record-modifier irc-object 'hostname) obj var))))
+
+(define (set-nick! obj var)
+  "If not yet connected change nick to @var{var}."
+  (if (connected? obj)
+      (irc-error "set-nick!: impossible to change nick when connected.")
+      (if (= 0 (string-length var))
+	  ((record-modifier irc-object 'nick) obj *nick*)
+	  ((record-modifier irc-object 'nick) obj var))))
 
 (define (do-nick obj nick)
   "Try to change the nickname into @var{nick}. When the nick is already taken keep the old nick.
@@ -270,17 +270,17 @@ returns #f, else #t."
       ((record-modifier irc-object 'connected) ircobj #t)))
 
   (if (not (irc-object? obj))
-      (irc-error "do-connect: expected obj to be an irc-object but got ~a.\n" obj)
+      (irc-error "do-connect: expected obj to be an irc-object but got ~a." obj)
       (catch #t
 	(lambda ()
 	  (_connect obj))
 	(lambda (key . args)
-	  (irc-error "do-connect: failed to connect to server ~a.\n" (server obj))))))
+	  (irc-error "do-connect: failed to connect to server ~a." (server obj))))))
 
 (define (do-register obj)
   "Send password, nick and user commands."
   (define (send-pass)
-    (if (not (null? (password obj)))
+    (if (password obj)
 	(do-command obj #:command 'PASS #:middle (password obj))))
   (define (send-nick)
     (do-command obj #:command 'NICK #:middle (nick obj)))
@@ -292,18 +292,16 @@ returns #f, else #t."
   (send-nick)
   (send-user))
 
-(define* (do-close obj #:optional reset-handlers)
-  "Close the connection without sending QUIT. If @var{reset-handlers} is #t also
- rest the message hook."
-  (cleanup-irc-object obj #:handlers reset-handlers))
+(define* (do-close obj)
+  "Close the connection without sending QUIT."
+  (cleanup-irc-object obj))
 
-(define* (do-quit obj #:key (quit-msg *quitmsg*) reset-handlers)
-  "Send QUIT to the server and clean up. If @var{reset-handlers} is #t also reset
-the message hook."
+(define* (do-quit obj #:key (quit-msg *quitmsg*))
+  "Send QUIT to the server and clean up."
   (if (connected? obj)
       (begin (send-string obj "QUIT :~a" quit-msg)
-	     (do-close obj reset-handlers))
-      (do-close obj reset-handlers)))
+	     (do-close obj))
+      (do-close obj)))
 
 (define (do-privmsg obj receiver msg)
   "Send message @var{msg} to @var{reciever} (channel or user)."
@@ -335,7 +333,7 @@ the message hook."
 (define (do-runloop obj)
   (let ([sock (_socket obj)])
     (while (not (port-closed? sock))
-      (run-message-hook obj (do-wait obj)))))
+      (handle-message obj (do-wait obj)))))
 
 (define (do-part obj chan)
   "Part channel @var{chan}."
@@ -391,11 +389,12 @@ Procedures will be added to the front of the hook unless append is not #f."
   "Remove all procedures in the hook that match tag @var{tag}."
   (remove-tagged-hook! (hooks obj) tag))
 
-(define (run-message-hook obj . args)
-  "Apply arguments @var{args} to all the procedures in the hook."
-  (apply run-tagged-hook (hooks obj) args))
+(define (run-message-hook obj msg)
+  "Apply arguments @var{msg} to all the procedures in the hook."
+  (run-tagged-hook (hooks obj) msg))
 
 (define (reset-message-hook! obj)
   "Remove all the message-hooks from irc-object @var{obj}."
   (reset-tagged-hook! (hooks obj)))
 
+(define handle-message run-message-hook)

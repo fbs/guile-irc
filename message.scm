@@ -34,7 +34,6 @@
   #:export (command
 	    middle
 	    trailing
-	    raw
 	    time
 	    prefix
 	    prefix-type
@@ -143,6 +142,13 @@
     (let ([m1 (regexp-exec rx1 str)])
       (values m1 (regexp-exec rx2 (match:substring m1 4))))))
 
+
+(define (raw msg)
+  "Return the unparsed message string. Note that this only works for messages
+ constructed useing parse-message-string."
+  ((record-accessor message-object 'raw) msg))
+
+
 ;; external
 
 (define (parse-message-string msg)
@@ -238,11 +244,6 @@ trailing: string."
   "Return the trailing part of the message if there is one, #f otherwise."
   ((record-accessor message-object 'trailing) msg))
 
-(define (raw msg)
-  "Return the unparsed message string. Note that this only works for messages
- constructed useing parse-message-string."
-  ((record-accessor message-object 'raw) msg))
-
 (define (time msg)
   "Return the message timestamp (moment at which it was parsed). Time format
  is seconds since epoch."
@@ -274,7 +275,9 @@ trailing: string."
 	[trail (trailing msg)])
     (if raw
 	raw
-	(if trail
-	    (format #f "~A ~A :~A" (command msg) (middle->string (middle msg))
-		    (trailing msg))
-	    (format #f "~A ~A" (command msg) (middle->string (middle msg)))))))
+	(let ([str 
+	       (if trail
+		   (format #f "~A ~A :~A" (command msg) (middle->string (middle msg))
+			   (trailing msg))
+		   (format #f "~A ~A" (command msg) (middle->string (middle msg))))])
+	  ((record-modifier message-object 'raw) msg str)))))
