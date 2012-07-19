@@ -58,14 +58,13 @@
 	    set-realname!
 	    set-server!))
 
-
-(use-modules ((irc message)
-	      #:renamer (symbol-prefix-proc 'msg:))
-	     (irc tagged-hook)
-	     (irc channel)
-	     (irc error)
-	     (ice-9 format)
-	     (ice-9 rdelim))
+;; (use-modules ((irc message)
+;; 	      #:renamer (symbol-prefix-proc 'msg:))
+;; 	     (irc tagged-hook)
+;; 	     (irc channel)
+;; 	     (irc error)
+;; 	     (ice-9 format)
+;; 	     (ice-9 rdelim))
 
 ;;;; Some constants
 (define *nick* "bot")
@@ -170,7 +169,7 @@ to #f to disable."
 (define server		 (record-accessor irc-object 'server))
 (define hostname	 (record-accessor irc-object 'hostname))
 (define connected?	 (record-accessor irc-object 'connected))
- 
+
 (define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
 		   (port *port*) (hostname *hostname*))
   "Create a new irc object.
