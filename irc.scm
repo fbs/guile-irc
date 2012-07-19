@@ -325,9 +325,11 @@ returns #f, else #t."
 	m
 	(loop (do-listen obj)))))
 
-(define (do-join obj chan)
+(define (do-join obj chan . pass)
   "Try to join channel @var{chan}."
-  (send-string obj "JOIN ~a" chan)
+  (if (null? pass)
+      (send-string obj "JOIN ~a" chan)
+      (send-string obj "JOIN ~a ~a" chan pass))
   (channel-add! (channels obj) chan))
 
 (define (do-runloop obj)
