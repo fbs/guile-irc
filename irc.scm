@@ -331,6 +331,8 @@ returns #f, else #t."
 
 (define (do-join obj chan . pass)
   "Try to join channel @var{chan}."
+  (if (not (msg:is-channel? chan))
+      (irc-error "invalid channel" chan))
   (if (null? pass)
       (send-string obj "JOIN ~a" chan)
       (send-string obj "JOIN ~a ~a" chan pass))
