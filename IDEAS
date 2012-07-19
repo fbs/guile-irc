@@ -1,5 +1,9 @@
 - Rate limiting on output. 
 Limit to x messages/second to prevent being kicked from the server. 
+http://en.wikipedia.org/wiki/Token_bucket
+
+- Line length
+limit lines to 512 char max.
 
 - Log handler
 Send all raw in/output through a special logging procedure
