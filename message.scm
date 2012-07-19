@@ -16,7 +16,7 @@
 
 ;; with some help with dsmith from #guile
 
-;;;;;;;;;;; TODO 
+;;;;;;;;;;; TODO
 ;;
 ;; -fix all error/throw statements.
 ;;
@@ -85,11 +85,11 @@
 (define p:server	 (record-accessor prefix-object 'server))
 (define p:raw		 (record-accessor prefix-object 'raw))
 
-(define (m:p:nick msg)		(p:nick (m:prefix msg)))
-(define (m:p:user msg)		(p:user (m:prefix msg)))
-(define (m:p:hostname msg)	(p:hostname (m:prefix msg)))
-(define (m:p:server msg)	(p:server (m:prefix msg)))
-(define (m:p:raw msg)		(p:raw (m:prefix msg)))
+(define-inlinable (m:p:nick msg)		(p:nick (m:prefix msg)))
+(define-inlinable (m:p:user msg)		(p:user (m:prefix msg)))
+(define-inlinable (m:p:hostname msg)	(p:hostname (m:prefix msg)))
+(define-inlinable (m:p:server msg)	(p:server (m:prefix msg)))
+(define-inlinable (m:p:raw msg)		(p:raw (m:prefix msg)))
 
 (define* (make-message-object #:key prefix command middle trailing raw time)
   ((record-constructor message-object)
@@ -134,7 +134,6 @@
 	  mid
 	  "")))
 
-
 (define (run-parser-regex str)
   "Only seperated for debugging purposes!"
   (let ([rx1 (make-regexp "^(:([^ ]+) +)?([^ ]+) +(.+)$")]
@@ -142,12 +141,10 @@
     (let ([m1 (regexp-exec rx1 str)])
       (values m1 (regexp-exec rx2 (match:substring m1 4))))))
 
-
 (define (raw msg)
   "Return the unparsed message string. Note that this only works for messages
  constructed useing parse-message-string."
   ((record-accessor message-object 'raw) msg))
-
 
 ;; external
 
@@ -184,7 +181,7 @@ trailing: string."
 	  (symbol? cmd)) cmd)
      (else (throw 'irc-message-error))))
   (define (check-middle middle)
-    (cond 
+    (cond
      ((not middle) #f)
      ((and (list? middle)
 	   (typecheck-list string? middle)) (throw 'irc-message-error))
@@ -196,7 +193,7 @@ trailing: string."
 	trail))
   (let ([cmd (check-command command)]
 	[middle (check-middle middle)]
-	[trailing (check-trailing trailing)])    
+	[trailing (check-trailing trailing)])
     (make-message-object
      #:command command
      #:middle middle
@@ -269,13 +266,13 @@ trailing: string."
       #f))
 
 (define (message->string msg)
-  "Transform irc-message @var{message} into a sendable string 
+  "Transform irc-message @var{message} into a sendable string
  (i.e. command middle :trailing)."
   (let ([raw (raw msg)]
 	[trail (trailing msg)])
     (if raw
 	raw
-	(let ([str 
+	(let ([str
 	       (if trail
 		   (format #f "~A ~A :~A" (command msg) (middle->string (middle msg))
 			   (trailing msg))
