@@ -58,6 +58,15 @@
 	    set-realname!
 	    set-server!))
 
+
+(use-modules ((irc message)
+	      #:renamer (symbol-prefix-proc 'msg:))
+	     (irc tagged-hook)
+	     (irc channel)
+	     (irc error)
+	     (ice-9 format)
+	     (ice-9 rdelim))
+
 ;;;; Some constants
 (define *nick* "bot")
 (define *realname* "mr bot")
@@ -88,7 +97,6 @@
      hooks
      hostname
      nick
-     password
      port
      realname
      server
@@ -157,7 +165,6 @@ to #f to disable."
   ((record-predicate irc-object) obj))
 
 (define nick		 (record-accessor irc-object 'nick))
-(define password	 (record-accessor irc-object 'password))
 (define port		 (record-accessor irc-object 'port))
 (define realname	 (record-accessor irc-object 'realname))
 (define server		 (record-accessor irc-object 'server))
@@ -165,13 +172,12 @@ to #f to disable."
 (define connected?	 (record-accessor irc-object 'connected))
  
 (define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
-			  (port *port*) (password #f) (hostname *hostname*))
+		   (port *port*) (hostname *hostname*))
   "Create a new irc object.
 nick: string
 realname: string
 server: string
 port: integer
-password: string
 hostname: string."
   ((record-constructor irc-object)
    (make-channel-table)	;; channels
@@ -179,7 +185,6 @@ hostname: string."
    (make-tagged-hook)	;; hooks
    hostname		;; hostname
    nick			;; nick
-   password		;; password
    port			;; port
    realname		;; realname
    server		;; server
@@ -220,14 +225,6 @@ hostname: string."
       (if (= 0 (string-length var))
 	  ((record-modifier irc-object 'realname) obj *realname*)
 	  ((record-modifier irc-object 'realname) obj var))))
-
-(define (set-password! obj var)
-  "If not yet connected change password to @var{var}."
-  (if (connected? obj)
-      (irc-error "set-password!: impossible to change password when connected.")
-      (if (= 0 (string-length var))
-	  ((record-modifier irc-object 'password) obj #f)
-	  ((record-modifier irc-object 'password) obj var))))
 
 (define (set-hostname! obj var)
   "If not yet connected change hostname to @var{var}."
@@ -278,19 +275,26 @@ returns #f, else #t."
 	  (irc-error "do-connect: failed to connect to server ~a." (server obj))))))
 
 (define (do-register obj)
-  "Send password, nick and user commands."
-  (define (send-pass)
-    (if (password obj)
-	(do-command obj #:command 'PASS #:middle (password obj))))
-  (define (send-nick)
-    (do-command obj #:command 'NICK #:middle (nick obj)))
-  (define (send-user)
+  "Send nick and user commands."
+  (define (check-nick-valid obj)
+    (let ([msg (do-listen obj)])
+      (cond [(eq? msg #f) #t]
+	    [(and (msg:message? msg)
+		  (eq? (msg:command msg) 433)) #f]
+	    [else (check-nick-valid obj)])))
+  (define (try-nick nick)
+    (do-command obj #:command 'NICK #:middle nick)
+    (sleep 2)
+    (if (check-nick-valid obj)
+	nick
+	(try-nick (string-append nick "_"))))
+  (define (try-user)
     (send-string obj "USER ~a ~a * :~a" (nick obj) (hostname obj) (realname obj)))
+
   (if (not (connected? obj))
-      #f)
-  (send-pass)
-  (send-nick)
-  (send-user))
+      (do-connect obj))
+  ((record-modifier irc-object 'nick) obj (try-nick (nick obj)))
+  (try-user))
 
 (define* (do-close obj)
   "Close the connection without sending QUIT."
