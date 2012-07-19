@@ -74,6 +74,8 @@
 (define *hostname* "localhost")
 (define *quitmsg* "Not enough parenthesis")
 
+(define *max-msg-length* 512)
+
 ;;;; macros
 
 ;;;; Data types
@@ -120,7 +122,7 @@
    (else #f)))
 
 (define (stringify c)
-"Stringify returns a string if @var{c} is a symbol or string, #f otherwise."
+  "Stringify returns a string if @var{c} is a symbol or string, #f otherwise."
   (cond
    ((string? c) c)
    ((symbol? c) (symbol->string c))
@@ -133,7 +135,9 @@ procedure, so don't add them! Uses (ice-9 format) for the formatting."
 
 (define (send-message obj msg)
   "Send irc-message @var{msg} to the server."
-  (send-raw obj (msg:message->string msg)))
+  (define split-long-message list)
+  (for-each (lambda (m) (send-raw obj (msg:message->string m)))
+	    (split-long-message msg)))
 
 (define (send-raw obj str)
   "Send string @var{str} to the server"
@@ -244,7 +248,6 @@ hostname: string."
 (define (do-nick obj nick)
   "Try to change the nickname into @var{nick}. When the nick is already taken keep the old nick.
 returns #f, else #t."
-
   (if (not (string? nick))
       (irc-type-error "set-nick!" "string" nick)
       (if (not (connected? obj))
