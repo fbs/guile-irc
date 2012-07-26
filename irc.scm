@@ -331,11 +331,11 @@ returns #f, else #t."
 	m
 	(loop (do-listen obj)))))
 
-(define (do-join obj chan . pass)
+(define* (do-join obj chan #:optional pass)
   "Try to join channel @var{chan}."
   (if (not (msg:is-channel? chan))
       (irc-error "invalid channel" chan))
-  (if (null? pass)
+  (if pass
       (send-string obj "JOIN ~a" chan)
       (send-string obj "JOIN ~a ~a" chan pass))
   (channel-add! (channels obj) chan))
