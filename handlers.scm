@@ -37,7 +37,7 @@
 (define* (install-printer! obj  #:key (port (current-output-port)))
   (let ([printer
 	 (lambda (msg)
-	   (format port "~a\n" (msg:raw msg))
+	   (format port "~a\n" (msg:message->string msg))
 	   msg)])
     (add-message-hook! obj printer #:tag 'printer)))
 
