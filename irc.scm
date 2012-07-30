@@ -58,14 +58,6 @@
 	    set-realname!
 	    set-server!))
 
-;; (use-modules ((irc message)
-;; 	      #:renamer (symbol-prefix-proc 'msg:))
-;; 	     (irc tagged-hook)
-;; 	     (irc channel)
-;; 	     (irc error)
-;; 	     (ice-9 format)
-;; 	     (ice-9 rdelim))
-
 ;;;; Some constants
 (define *nick* "bot")
 (define *realname* "mr bot")
@@ -74,7 +66,7 @@
 (define *hostname* "localhost")
 (define *quitmsg* "Not enough parenthesis")
 
-(define *max-msg-length* 512)
+(define *max-msgl* 510)
 
 ;;;; macros
 
@@ -128,14 +120,31 @@
    ((symbol? c) (symbol->string c))
    (else #f)))
 
-(define (send-string obj fmt . args)
-  "Send (format) string @var{fmt} to the server. The crlf is handled by this
-procedure, so don't add them! Uses (ice-9 format) for the formatting."
-  (send-raw obj (apply format #f fmt args)))
+(define (string-split-size str size)
+  "Split string @var{str} in chunks of size @var{size}."
+  (define (_split pos total)
+    (let ([newpos (+ pos size)])
+      (cond 
+       ([>= newpos (string-length str)]
+	(append total (list (substring str pos))))
+       (else
+	(_split newpos (append total (list (substring str pos newpos))))))))
+  (_split 0 '()))
+
+(define (split-long-message msg)
+  (let ([cmd (msg:command msg)]
+	[mid (msg:middle msg)]
+	[trail (msg:trailing msg)])
+    (if trail
+	(let* ([prelength (- (string-length (msg:message->string msg)) (string-length trail))]
+	       [splitmsg (string-split-size trail (- *max-msgl* prelength))])
+	  (map (lambda (str)
+		 (msg:make-message #:command cmd #:middle mid #:trailing str))
+	       splitmsg))
+	(list msg))))
 
 (define (send-message obj msg)
   "Send irc-message @var{msg} to the server."
-  (define split-long-message list)
   (for-each (lambda (m) (send-raw obj (msg:message->string m)))
 	    (split-long-message msg)))
 
@@ -291,7 +300,10 @@ returns #f, else #t."
 	nick
 	(try-nick (string-append nick "_"))))
   (define (try-user)
-    (send-string obj "USER ~a ~a * :~a" (nick obj) (hostname obj) (realname obj)))
+    (do-command obj 
+		#:command 'USER 
+		#:middle (format #f "~a ~a *" (nick obj) (hostname obj))
+		#:trailing (realname obj)))
 
   (if (not (connected? obj))
       (do-connect obj))
@@ -305,13 +317,13 @@ returns #f, else #t."
 (define* (do-quit obj #:key (quit-msg *quitmsg*))
   "Send QUIT to the server and clean up."
   (if (connected? obj)
-      (begin (send-string obj "QUIT :~a" quit-msg)
+      (begin (do-command obj #:command 'QUIT #:trailing quit-msg)
 	     (do-close obj))
       (do-close obj)))
 
 (define (do-privmsg obj receiver msg)
   "Send message @var{msg} to @var{reciever} (channel or user)."
-  (send-string obj "PRIVMSG ~a :~a" receiver msg))
+  (do-command obj #:command 'PRIVMSG #:middle receiver #:trailing msg))
 
 (define* (do-command obj #:key command middle trailing)
   (send-message obj
@@ -336,8 +348,9 @@ returns #f, else #t."
   (if (not (msg:is-channel? chan))
       (irc-error "invalid channel" chan))
   (if pass
-      (send-string obj "JOIN ~a" chan)
-      (send-string obj "JOIN ~a ~a" chan pass))
+      (do-command obj #:command 'JOIN #:middle chan)
+      (do-command obj #:command 'JOIN #:middle (string-join chan pass))
+)
   (channel-add! (channels obj) chan))
 
 (define (do-runloop obj)
@@ -348,7 +361,7 @@ returns #f, else #t."
 (define (do-part obj chan)
   "Part channel @var{chan}."
   (if (in-channel? obj chan)
-      (send-string obj "PART ~a" chan)
+      (do-command obj #:command 'PART #:middle chan)
       #f))
 
 (define* (add-message-hook!
