@@ -1,0 +1,7 @@
+*.go
+build-aux/
+autom4te.cache/
+configure
+config.status
+*.in
+Makefile

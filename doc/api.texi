@@ -1,6 +1,6 @@
 \input texinfo @c -*- texinfo -*-
 @c
-@setfilename guile-irc-api.texi
+@setfilename api.info
 @settitle    Preliminary API reference manual
 @c
 
