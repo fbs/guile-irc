@@ -41,6 +41,8 @@ An irc library for [GNU guile](http://www.gnu.org/software/guile/).
 (do-runloop irc)
 ```
 
-## Documentation
+## API
 
-Full documentation can be found at the [wiki](http://fbs.github.com/guile-irc/)
+[API reference page](http://fbs.github.com/guile-irc/)
+
+
