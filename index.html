@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html lang="en">
+<head>
+<title>Preliminary API reference manual</title>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+<meta name="description" content="Preliminary API reference manual">
+<meta name="generator" content="makeinfo 4.13">
+<link title="Top" rel="start" href="#Top">
+<link href="http://www.gnu.org/software/texinfo/" rel="generator-home" title="Texinfo Homepage">
+<!--
+This is a preliminary API reference manual for guile-irc version 0.2.
+Copyright (C) 2012 bas smit (fbs)
+
+     Copying and distribution of this file, with or without
+     modification, are permitted in any medium without royalty provided
+     the copyright notice and this notice are preserved.
+   -->
+<meta http-equiv="Content-Style-Type" content="text/css">
+<style type="text/css"><!--
+  pre.display { font-family:inherit }
+  pre.format  { font-family:inherit }
+  pre.smalldisplay { font-family:inherit; font-size:smaller }
+  pre.smallformat  { font-family:inherit; font-size:smaller }
+  pre.smallexample { font-size:smaller }
+  pre.smalllisp    { font-size:smaller }
+  span.sc    { font-variant:small-caps }
+  span.roman { font-family:serif; font-weight:normal; } 
+  span.sansserif { font-family:sans-serif; font-weight:normal; } 
+--></style>
+</head>
+<body>
+This is a preliminary API reference manual for guile-irc version 0.2. 
+Copyright &copy; 2012 bas smit (fbs)
+<blockquote>
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved. 
+</blockquote>
+
+<h2 class="chapter"><a name="TOC0"></a>1 IRC</h2>
+
+<h3 class="section"><a name="TOC1"></a>1.1 IRC API</h3>
+
+<div class="defun">
+&mdash; Procedure: <b>make-irc</b> [<var>#:nick=&ldquo;bot&rdquo;</var>] [<var>#:realname=&ldquo;bot&rdquo;</var>] [<var>#:hostname=&ldquo;localhost&rdquo;</var>] [<var>#:server=&rdquo;localhost&rdquo;</var>] [<var>#:port=6667</var>] [<var>#:password=&rdquo;#f&rdquo;</var>]<var><a name="index-make_002dirc-1"></a></var><br>
+<blockquote><p>Create a new <code>irc-object</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Constant: <b>*nick*</b><var> &ldquo;bot&rdquo;<a name="index-g_t_002anick_002a-2"></a></var><br>
+&mdash; Constant: <b>*realname*</b><var> &ldquo;mr bot&rdquo;<a name="index-g_t_002arealname_002a-3"></a></var><br>
+&mdash; Constant: <b>*server*</b><var> &ldquo;localhost&rdquo;<a name="index-g_t_002aserver_002a-4"></a></var><br>
+&mdash; Constant: <b>*port*</b><var> 6667<a name="index-g_t_002aport_002a-5"></a></var><br>
+&mdash; Constant: <b>*hostname*</b><var> &ldquo;localhost&rdquo;<a name="index-g_t_002ahostname_002a-6"></a></var><br>
+&mdash; Constant: <b>*quitmsg*</b><var> &ldquo;Not enough parenthesis&rdquo;<a name="index-g_t_002aquitmsg_002a-7"></a></var><br>
+<blockquote><p>Default values. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>irc-object?</b><var> obj<a name="index-irc_002dobject_003f-8"></a></var><br>
+<blockquote><p>Return <code>#t</code> if <var>obj</var> is an <code>irc-object</code>, else return <code>#f</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>nick</b><var> obj<a name="index-nick-9"></a></var><br>
+&mdash; Procedure: <b>realname</b><var> obj<a name="index-realname-10"></a></var><br>
+&mdash; Procedure: <b>hostname</b><var> obj<a name="index-hostname-11"></a></var><br>
+&mdash; Procedure: <b>password</b><var> obj<a name="index-password-12"></a></var><br>
+&mdash; Procedure: <b>port</b><var> obj<a name="index-port-13"></a></var><br>
+&mdash; Procedure: <b>server</b><var> obj<a name="index-server-14"></a></var><br>
+<blockquote><p>Access the corresponding field of <code>irc-object</code> <var>obj</var>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>set-port!</b><var> obj val<a name="index-set_002dport_0021-15"></a></var><br>
+&mdash; Procedure: <b>set-server!</b><var> obj val<a name="index-set_002dserver_0021-16"></a></var><br>
+&mdash; Procedure: <b>set-nick!</b><var> obj val<a name="index-set_002dnick_0021-17"></a></var><br>
+&mdash; Procedure: <b>set-realname!</b><var> obj val<a name="index-set_002drealname_0021-18"></a></var><br>
+&mdash; Procedure: <b>set-hostname!</b><var> obj val<a name="index-set_002dhostname_0021-19"></a></var><br>
+&mdash; Procedure: <b>set-password!</b><var> obj val<a name="index-set_002dpassword_0021-20"></a></var><br>
+<blockquote><p>Set the field of <code>irc-object</code> <var>obj</var>. <var>set-port!</var> expects a valid port number, all others expect a string. Using the empty string will reset the values to their defaults (see make-irc). The return value is not specified.
+
+        <p>Note that it is not possible to set a value when connected. Trying to do so will result in an error. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-nick</b><var> obj nick<a name="index-do_002dnick-21"></a></var><br>
+<blockquote><p>Not yet implemented. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-connect</b><var> obj<a name="index-do_002dconnect-22"></a></var><br>
+<blockquote><p>Connect <code>irc-object</code> <var>obj</var> to server, and try to register (PASS USER NICK sequence). Failure to connect results in an error.
+
+        <p>Note that there is no nick collision detection yet, so make sure you use a `free' nick. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-quit</b><var> obj </var>[<var>#:quit-msg=*quit*</var>]<var><a name="index-do_002dquit-23"></a></var><br>
+<blockquote><p>Send the <code>QUIT</code> command, using <var>quit-msg</var> as quit message. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-close</b><var> obj<a name="index-do_002dclose-24"></a></var><br>
+<blockquote><p>Close the connection without sending the <code>QUIT</code> command. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-command</b><var> obj </var>[<var>#:command</var>] [<var>#:middle</var>] [<var>#:trailing</var>]<var><a name="index-do_002dcommand-25"></a></var><br>
+        </div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-privmsg</b><var> obj receiver msg<a name="index-do_002dprivmsg-26"></a></var><br>
+<blockquote><p>Send message <var>msg</var> to user or channel <var>receiver</var>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-listen</b><var> obj<a name="index-do_002dlisten-27"></a></var><br>
+<blockquote><p>Returns a <code>irc-message-object</code> if there is data available, <code>#f</code> otherwise. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-wait</b><var> obj<a name="index-do_002dwait-28"></a></var><br>
+<blockquote><p>Similar to <var>do-listen</var> but keeps waiting till data is available. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-join</b><var> obj chan<a name="index-do_002djoin-29"></a></var><br>
+<blockquote><p>Send the <code>JOIN</code> command.
+
+        <p>Currently there is no error checking implemented, so a rejected join still shows in the channel  list. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-runloop</b><var> obj<a name="index-do_002drunloop-30"></a></var><br>
+<blockquote><pre class="lisp">            (let ([sock (_socket obj)])
+              (while (not (port-closed? sock))
+                (handle-message obj (do-wait obj))))
+</pre>
+        </blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>do-part</b><var> obj chan<a name="index-do_002dpart-31"></a></var><br>
+<blockquote><p>Leave channel <var>chan</var>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>add-message-hook</b><var> obj proc </var>[<var>#:tag</var>] [<var>#:append=#f</var>]<var><a name="index-add_002dmessage_002dhook-32"></a></var><br>
+        </div>
+
+<div class="defun">
+&mdash; Procedure: <b>add-simple-message-hook!</b><var> obj proc </var>[<var>#:sender</var>] [<var>#:receiver</var>] [<var>#:command</var>] [<var>#:middle</var>] [<var>#:trailing</var>] [<var>#:tag</var>] [<var>#:append</var>]<var><a name="index-add_002dsimple_002dmessage_002dhook_0021-33"></a></var><br>
+        </div>
+
+<div class="defun">
+&mdash; Procedure: <b>exists-message-hook?</b><var> obj tag<a name="index-exists_002dmessage_002dhook_003f-34"></a></var><br>
+<blockquote><p>Returns <code>#t</code> if a hook with tag <var>tag</var> exists, <code>#f</code> otherwise. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>remove-message-hook!</b><var> obj tag<a name="index-remove_002dmessage_002dhook_0021-35"></a></var><br>
+<blockquote><p>Remove the procedure with tag <var>tag</var> from the message-hook of <code>irc-object</code> <var>obj</var>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>run-message-hook</b><var> obj </var>[<var>args</var>]<var><a name="index-run_002dmessage_002dhook-36"></a></var><br>
+<blockquote><p>Apply all procedures from the message-hook of <code>irc-object</code> <var>obj</var> to the arguments arg .The order of the procedure application is first to last. The return value of this procedure is not specified. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>reset-message-hook!</b><var> obj<a name="index-reset_002dmessage_002dhook_0021-37"></a></var><br>
+<blockquote><p>Remove all procedures from the message-hook of <code>irc-object</code> <var>obj</var>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>channels-&gt;list</b><var> obj<a name="index-channels_002d_003elist-38"></a></var><br>
+<blockquote><p>Return the channels joined by <code>irc-object</code> <var>obj</var> as list. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>in-channel?</b><var> obj chan<a name="index-in_002dchannel_003f-39"></a></var><br>
+<blockquote><p>Returns <code>#t</code> if channel <var>chan</var> is joined, <code>#f</code> otherwise. 
+</p></blockquote></div>
+
+<h2 class="chapter"><a name="TOC2"></a>2 Message handling</h2>
+
+<p>Messages are parsed according to the 'pseudo' BNF in RFC 1459 (<a href="http://www.ietf.org/rfc/rfc1459.txt">http://www.ietf.org/rfc/rfc1459.txt</a>).
+
+<pre class="verbatim">&lt;message> ::=
+    [':' &lt;prefix> &lt;SPACE> ] &lt;command> &lt;params> &lt;crlf>
+&lt;prefix> ::=
+    &lt;servername> | &lt;nick> [ '!' &lt;user> ] [ '@' &lt;host> ]
+&lt;command> ::=
+    &lt;letter> { &lt;letter> } | &lt;number> &lt;number> &lt;number>
+&lt;SPACE> ::=
+    ' ' { ' ' }
+&lt;params> ::=
+    &lt;SPACE> [ ':' &lt;trailing> | &lt;middle> &lt;params> ]
+&lt;middle> ::=
+    &lt;Any *non-empty* sequence of octets not including SPACE or NUL or CR or LF, the first of which may not be ':'>
+&lt;trailing> ::=
+    &lt;Any, possibly *empty*, sequence of octets not including NUL or CR or LF>
+&lt;crlf> ::=
+    CR LF 
+</pre>
+
+<h3 class="section"><a name="TOC3"></a>2.1 Message API</h3>
+
+<div class="defun">
+&mdash; Module: <b>(</b><var>irc message</var>)<var><a name="index-g_t_0028-40"></a></var><br>
+     </div>
+
+<div class="defun">
+&mdash; Procedure: <b>parse-message-string</b><var> msg<a name="index-parse_002dmessage_002dstring-41"></a></var><br>
+<blockquote><p>Parse the message string <var>msg</var> into an <code>message-object</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>make-message</b> [<var>#:command</var>] [<var>#:middle</var>] [<var>#:trailing</var>]<var><a name="index-make_002dmessage-42"></a></var><br>
+<blockquote><p>Create a new <code>message-object</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>message?</b><var> obj<a name="index-message_003f-43"></a></var><br>
+<blockquote><p>Return <code>#t</code> if <var>obj</var> is an message-object, else <code>#f</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>prefix</b><var> msg<a name="index-prefix-44"></a></var><br>
+<blockquote><p>Return the prefix part of <code>message-object</code> <var>msg</var>.
+
+        <p>Either '(user nick host), server or #f. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>prefix-type</b><var> msg<a name="index-prefix_002dtype-45"></a></var><br>
+<blockquote><p>Returns 'USER if the message was send by a user, 'SERVER if the message was send by a server and #f otherwise. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>command</b><var> msg<a name="index-command-46"></a></var><br>
+<blockquote><p>Returns either a number or symbol depending on the type of command. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>middle</b><var> msg<a name="index-middle-47"></a></var><br>
+<blockquote><p>Returns the empty string, a string or a list of string. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>trailing</b><var> msg<a name="index-trailing-48"></a></var><br>
+<blockquote><p>Returns a string or #f. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>time</b><var> msg<a name="index-time-49"></a></var><br>
+<blockquote><p>Returns a timestamp as created by (current-time). 
+</p></blockquote></div>
+
+<h4 class="subsection"><a name="TOC4"></a>2.1.1 Message handling helpers</h4>
+
+<div class="defun">
+&mdash; Procedure: <b>parse-source</b><var> msg<a name="index-parse_002dsource-50"></a></var><br>
+<blockquote><p>Find the source or <code>message-object</code> <var>msg</var>. If the source is found the return value is a string, otherwise it is <code>#f</code>. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>parse-target</b><var> msg<a name="index-parse_002dtarget-51"></a></var><br>
+<blockquote><p>Find out who to send a reply to.
+
+        <p>Note that this only works for PRIVMSG and PING commands. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>is-channel?</b><var> str<a name="index-is_002dchannel_003f-52"></a></var><br>
+<blockquote><p>Test if <code>string</code> <var>str</var> is a valid channel. 
+</p></blockquote></div>
+
+<div class="defun">
+&mdash; Procedure: <b>message-&gt;string</b><var> msg<a name="index-message_002d_003estring-53"></a></var><br>
+<blockquote><p>Transform <code>message-object</code> <var>msg</var> into a sendable string (i.e. command middle :trailing). 
+</p></blockquote></div>
+
+</body></html>
+
