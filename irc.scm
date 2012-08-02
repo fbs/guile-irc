@@ -47,11 +47,13 @@
 	    nick
 	    password
 	    port
+	    read-message
 	    realname
 	    remove-message-hook!
 	    reset-message-hook!
 	    run-message-hook
 	    server
+	    send-message
 	    set-hostname!
 	    set-password!
 	    set-port!
