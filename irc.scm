@@ -350,9 +350,8 @@ returns #f, else #t."
   (if (not (msg:is-channel? chan))
       (irc-error "invalid channel" chan))
   (if pass
-      (do-command obj #:command 'JOIN #:middle chan)
-      (do-command obj #:command 'JOIN #:middle (string-join chan pass))
-)
+      (do-command obj #:command 'JOIN #:middle (string-join (list chan pass) ","))
+      (do-command obj #:command 'JOIN #:middle chan))
   (channel-add! (channels obj) chan))
 
 (define (do-runloop obj)
