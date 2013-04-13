@@ -5,7 +5,7 @@
 ################################################
 
 
-autoreconf -vif
+sh autogen.sh
 ./configure
 make
 sudo make install
