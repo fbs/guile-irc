@@ -180,7 +180,7 @@
     (string-delete (string->char-set "\r") s))
   (let* ([i/o (s-i/o obj)]
          [soc (_socket obj)]
-	 [message (and (char-ready? soc) (if (registered? obj)
+	 [message (and (char-ready? soc) (if (tls? obj)
                                              (read-line i/o)
                                              (read-line soc)))])
     (cond
