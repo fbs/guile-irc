@@ -1,7 +1,15 @@
+*~
+*.db
 *.go
 build-aux/
 autom4te.cache/
 configure
 config.status
-*.in
+Makefile.in
 Makefile
+bot-data
+aclocal.m4
+config.log
+doc/api.info
+env
+irc/config.scm

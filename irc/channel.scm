@@ -14,21 +14,28 @@
 ;; along with this program; if not, write to the Free Software
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
-(define-module (irc error)
-  #:version (0 2 1)
-  #:export (irc-error
-	    irc-type-error))
+(define-module (irc channel)
+  #:version (0 3 0)
+  #:export (make-channel-table
+	    channel-add!
+	    channel-remove!
+	    channel-clear!
+	    channel-table->list
+	    channel-ref))
 
-(define-syntax irc-error
-  (syntax-rules ()
-    ((_ msg args ...)
-     (throw 'irc-error (format #f msg args ...)))))
+(define (make-channel-table)
+  (make-hash-table 31))
 
-(define-syntax irc-type-error
-  (syntax-rules ()
-    ((_ origin arg expected got)
-     (throw 'irc-type-error (format #f "~a: argument ~a: expected type ~a, got ~a"
-				    origin arg expected got)))
-    ((_ origin expected got)
-     (throw 'irc-type-error (format #f "~a: expected type ~a, got ~a"
-				    origin expected got)))))
+(define (channel-add! table channel)
+  (hash-set! table channel #t))
+
+(define (channel-remove! table channel)
+  (hash-remove! table channel))
+
+(define channel-clear! hash-clear!)
+
+(define (channel-table->list table)
+  (hash-map->list (lambda (x y) x) table))
+
+(define (channel-ref table channel)
+  (hash-ref table channel))

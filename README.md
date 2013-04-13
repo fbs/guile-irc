@@ -15,7 +15,7 @@ An irc library for [GNU guile](http://www.gnu.org/software/guile/).
 
 2. Create an irc object.
 ```scheme
-(define irc (make-irc #:nick "bot" #:server "localhost" #:port 6667))
+(define irc (make-irc #:nick "bot" #:server "localhost" #:port 6697))
 ```
    
 3. Install some message handlers.
@@ -25,9 +25,10 @@ An irc library for [GNU guile](http://www.gnu.org/software/guile/).
 (install-printer! irc)
 ```
    
-4. Connect to the server and register.
+4. Connect to the server with tls and register.
 ```scheme
 (do-connect irc)
+(do-wrap-port/tls irc)
 (do-register irc)
 ```
 
@@ -44,5 +45,4 @@ An irc library for [GNU guile](http://www.gnu.org/software/guile/).
 ## API
 
 [API reference page](http://fbs.github.com/guile-irc/)
-
 
