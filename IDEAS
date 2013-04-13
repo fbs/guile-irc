@@ -8,3 +8,7 @@ limit lines to 512 char max.
 - Log handler
 Send all raw in/output through a special logging procedure
 (lambda (direction str) ..).
+
+- SSL support
+
+- Bot
