@@ -42,4 +42,7 @@ An irc library for [GNU guile](http://www.gnu.org/software/guile/).
 (do-runloop irc)
 ```
 
+## API
+
+[API reference page](http://fbs.github.com/guile-irc/)
 
