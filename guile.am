@@ -1,12 +1,7 @@
 GOBJECTS = $(SOURCES:%.scm=%.go)
 
 nobase_mod_DATA = $(SOURCES) $(NOCOMP_SOURCES)
-nobase_go_DATA = $(GOBJECTS) 
-
-
-
-
-
+nobase_go_DATA = $(GOBJECTS)
 
 guile_install_go_files = install-nobase_goDATA
 $(guile_install_go_files): install-nobase_modDATA

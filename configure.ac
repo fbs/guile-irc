@@ -15,7 +15,7 @@ else
    AC_MSG_ERROR([Guile 2.0 required.])
 fi
 
-AC_CONFIG_FILES([Makefile irc/config.scm] [doc/Makefile])
+AC_CONFIG_FILES([Makefile] [doc/Makefile])
 AC_CONFIG_FILES([env], [chmod +x env])
 
 

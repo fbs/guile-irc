@@ -1,5 +1,0 @@
-(define-module (irc config)
-  #:export (abs-top-srcdir))
-
-(define (abs-top-srcdir)
-  "@abs_top_srcdir@")
