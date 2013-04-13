@@ -63,13 +63,6 @@
 	    set-port!
 	    set-realname!
 	    set-server!
-            
-            ;; s-i/o       ;; For debugging purposes
-            ;; session     ;; For debugging purposes
-            ;; _socket     ;; For debugging purposes
-            ;; tls?        ;; For debugging purposes
-            ;; registered? ;; For debugging purposes
-            
             do-wrap-port/tls))
 
 ;;;; Some globals
@@ -195,6 +188,7 @@
      (message (msg:parse-message-string (delete-return message)))
      (else #f))))
 
+;; TODO - clean up session and CO properly
 (define* (cleanup-irc-object obj)
   "Reset @var{channels}, @var{connected} and socket to their initial value.
 The default behaviour is to also reset the message-hook. Set handlers
