@@ -14,6 +14,12 @@ if $GUILE_TOOLS | grep -q compile; then
 else
    AC_MSG_ERROR([Guile 2.0 required.])
 fi
+if gnutls-cli --help | grep -q USAGE:; then
+   # good, it seems to be installed
+   true
+else
+   AC_MSG_ERROR([GnuTLS required])
+fi
 
 AC_CONFIG_FILES([Makefile] [doc/Makefile])
 AC_CONFIG_FILES([env], [chmod +x env])
