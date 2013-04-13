@@ -1,4 +1,5 @@
 ;; Copyright (C) 2012 bas smit (fbs)
+;; Copyright (C) 2013 Andreas W (add^_)
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public License
@@ -15,14 +16,17 @@
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 (define-module (irc irc)
-  #:version (0 2 1)
+  #:version (0 3 0)
   #:use-module ((irc message)
 		#:renamer (symbol-prefix-proc 'msg:))
+  #:use-module ((gnutls)
+                #:renamer (symbol-prefix-proc 'gnutls:))
   #:use-module (irc tagged-hook)
   #:use-module (irc channel)
   #:use-module (irc error)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
+  #:use-module (ice-9 popen)
   #:export (add-message-hook!
 	    add-simple-message-hook!
 	    channels->list
@@ -58,17 +62,25 @@
 	    set-password!
 	    set-port!
 	    set-realname!
-	    set-server!))
+	    set-server!
+            
+            ;; s-i/o       ;; For debugging purposes
+            ;; session     ;; For debugging purposes
+            ;; _socket     ;; For debugging purposes
+            ;; tls?        ;; For debugging purposes
+            ;; registered? ;; For debugging purposes
+            
+            do-wrap-port/tls))
 
-;;;; Some constants
+;;;; Some globals
 (define *nick* "bot")
 (define *realname* "mr bot")
 (define *server* "localhost")
 (define *port* 6667)
-(define *hostname* "localhost")
+(define *hostname* *server*)
 (define *quitmsg* "Not enough parenthesis")
 
-(define *max-msgl* 510)
+(define *max-msgl* 500)
 
 ;;;; macros
 
@@ -79,10 +91,14 @@
 ;; Hostname:    String           irc hostname
 ;; Nick:        String           irc nickname
 ;; password:    String #f        irc password
-;; port:        Number           irc port
+;; port:        Integer          irc port
 ;; realname:    String           irc realname
 ;; server:      String           irc server url
 ;; socket:      Socket           Socket
+;; session      Session          Session
+;; tls          Boolean          #t if on, otherwise #f
+;; registered   Boolean          #f if not registered
+;; s-i/o        In/output        Input/output session
 
 (define irc-object
   (make-record-type
@@ -95,7 +111,11 @@
      port
      realname
      server
-     socket)
+     socket
+     session
+     tls
+     registered
+     s-i/o)
    (lambda (obj port)
      (format port "#<~A~c irc object>"
 	     ((record-accessor irc-object 'server) obj)
@@ -107,6 +127,10 @@
 (define channels	 (record-accessor irc-object 'channels))
 (define hooks		 (record-accessor irc-object 'hooks))
 (define _socket		 (record-accessor irc-object 'socket))
+(define session		 (record-accessor irc-object 'session))
+(define s-i/o            (record-accessor irc-object 's-i/o))
+(define tls?             (record-accessor irc-object 'tls))
+(define registered?      (record-accessor irc-object 'registered))
 
 (define (symbolize c)
 "Symbolize returns a symbol if @var{c} is a symbol or string, #f otherwise."
@@ -153,17 +177,22 @@
 (define (send-raw obj str)
   "Send string @var{str} to the server"
   (let ([msg (string-append str "\r\n")])
-    (send (_socket obj) msg)))
+    (if (tls? obj)
+        (display msg (s-i/o obj))
+        (display msg (_socket obj)))))
 
 (define (read-message obj)
   "Read a parsed message from irc-object obj."
   (define (delete-return s)
-    (string-delete s (string->char-set "\r")))
-  (let* ([s (_socket obj)]
-	 [m (and (char-ready? s) (read-line s))])
+    (string-delete (string->char-set "\r") s))
+  (let* ([i/o (s-i/o obj)]
+         [soc (_socket obj)]
+	 [message (and (char-ready? soc) (if (registered? obj)
+                                             (read-line i/o)
+                                             (read-line soc)))])
     (cond
-     ((eof-object? m) #f)
-     (m (msg:parse-message-string (delete-return m)))
+     ((eof-object? message) #f)
+     (message (msg:parse-message-string (delete-return message)))
      (else #f))))
 
 (define* (cleanup-irc-object obj)
@@ -173,7 +202,11 @@ to #f to disable."
   (channel-clear! (channels obj))
   ((record-modifier irc-object 'connected) obj #f)
   (and (_socket obj) (close-port (_socket obj)))
-  ((record-modifier irc-object 'socket) obj #f))
+  ((record-modifier irc-object 'socket) obj #f)
+  ((record-modifier irc-object 'registered) obj #f)
+  ((record-modifier irc-object 'session) obj #f)
+  ((record-modifier irc-object 's-i/o) obj #f)
+  ((record-modifier irc-object 'tls) obj #f))
 
 (define (irc-object? obj)
   ((record-predicate irc-object) obj))
@@ -203,7 +236,10 @@ hostname: string."
    realname		;; realname
    server		;; server
    #f			;; socket
-   ))
+   #f                   ;; session
+   #f                   ;; tls
+   #f                   ;; registered
+   #f))                 ;; secure i/o
 
 (define (channels->list obj)
   "Return the channels joined by irc-object @var{obj} as list."
@@ -273,9 +309,9 @@ returns #f, else #t."
 		       (addrinfo:socktype ai)
 		       (addrinfo:protocol ai))])
       (connect s
-	       (addrinfo:fam ai)
-	       (sockaddr:addr (addrinfo:addr ai))
-	       (port ircobj))
+               (addrinfo:fam ai)
+               (sockaddr:addr (addrinfo:addr ai))
+               (port ircobj))
       ((record-modifier irc-object 'socket) ircobj s)
       ((record-modifier irc-object 'connected) ircobj #t)))
 
@@ -307,10 +343,12 @@ returns #f, else #t."
 		#:middle (format #f "~a ~a *" (nick obj) (hostname obj))
 		#:trailing (realname obj)))
 
-  (if (not (connected? obj))
+  (when (not (connected? obj))
       (do-connect obj))
   ((record-modifier irc-object 'nick) obj (try-nick (nick obj)))
-  (try-user))
+  (try-user)
+  (when (not (registered? obj))
+    ((record-modifier irc-object 'registered) obj #t)))
 
 (define* (do-close obj)
   "Close the connection without sending QUIT."
@@ -422,3 +460,27 @@ Procedures will be added to the front of the hook unless append is not #f."
   (reset-tagged-hook! (hooks obj)))
 
 (define handle-message run-message-hook)
+
+(define (tls-wrap port session)
+  "Return PORT wrapped in a TLS connection."
+  (define (log level str)
+    (format (current-error-port)
+            "gnutls: [~a|~a] ~a" (getpid) level str))
+  (gnutls:set-session-transport-fd! session (fileno port))
+  ;;(gnutls:set-session-transport-port! session port)
+  (gnutls:set-session-default-priority! session)
+  (gnutls:set-session-credentials! session (gnutls:make-certificate-credentials))
+  ;; Uncomment the following lines in case of debugging
+  ;; emergency.
+  ;;(gnutls:set-log-level! 10)
+  ;;(gnutls:set-log-procedure! log)
+  (gnutls:handshake session)
+  (gnutls:session-record-port session))
+
+(define (do-wrap-port/tls obj)
+  (let* ([session (gnutls:make-session gnutls:connection-end/client)]
+         [s-i/o (tls-wrap (_socket obj) session)])
+    ((record-modifier irc-object 'tls) obj #t)
+    ((record-modifier irc-object 'session) obj session)
+    ((record-modifier irc-object 's-i/o) obj s-i/o)))
+

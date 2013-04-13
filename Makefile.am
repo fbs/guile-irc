@@ -1,30 +1,23 @@
-GUILE_FLAGS = -Wunbound-variable -Warity-mismatch -Wformat
+include guile.am
 
-SCM_SOURCES = 		\
-	channel.scm     \
-	error-code.scm  \
-	error.scm       \
-	handlers.scm    \
-	irc.scm	        \
-	message.scm     \
-	tagged-hook.scm 
+moddir=$(prefix)/share/guile/site/2.0
+godir=$(libdir)/guile/2.0/site-ccache
 
-GOBJECTS		 = $(SCM_SOURCES:%.scm=%.go)
+SOURCES = \
+	irc/config.scm \
+	irc/channel.scm \
+	irc/error.scm \
+	irc/error-code.scm \
+	irc/message.scm \
+	irc/tagged-hook.scm \
+	irc/irc.scm \
+	irc/handlers.scm
 
-scmdir			 = $(GUILE_SITE)/irc/
-godir			 = $(libdir)/guile/20/ccache/irc/
+EXTRA_DIST += env.in
 
-nobase_scm_DATA		 = $(SCM_SOURCES)
-nobase_go_DATA		 = $(GOBJECTS) 
+info_TEXINFOS = doc/api.texi
 
-guile_install_go_files	 = install-nobase_goDATA
-$(guile_install_go_files): install-nobase_scmDATA
-
-SUFFIXES		 = .scm .go
-CLEANFILES		 = $(GOBJECTS)
-
-SUBDIRS = doc
-AUTOMAKE_OPTIONS = subdir-objects
-
-.scm.go:
-	$(GUILE_TOOLS) compile $(GUILE_FLAGS) -o "$@" "$<"
+TESTS = \
+	test/message-test.scm
+TESTS_ENVIRONMENT = $(top_builddir)/env $(GUILE) --no-auto-compile
+EXTRA_DIST += $(TESTS) $(info_TEXINFOS)

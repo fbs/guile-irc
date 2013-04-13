@@ -1,4 +1,5 @@
 ;; Copyright (C) 2012 bas smit (fbs)
+;; Copyright (C) 2013 Andreas W (add^_)
 
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public License
@@ -23,7 +24,7 @@
 ;;;;;;;;;;;
 
 (define-module (irc message)
-  #:version (0 2 1)
+  #:version (0 3 0)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
