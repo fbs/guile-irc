@@ -24,7 +24,7 @@
 ;;;;;;;;;;;
 
 (define-module (irc message)
-  #:version (0 3 0)
+  #:version (0 2 2)
   #:use-module (ice-9 regex)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
