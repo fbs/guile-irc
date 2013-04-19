@@ -32,6 +32,8 @@
 		#:select (every any))
   #:use-module ((srfi srfi-11)
 		 #:select (let-values))
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-9 gnu)
   #:export (command
 	    middle
 	    trailing
@@ -45,6 +47,8 @@
 	    make-message
 	    parse-message-string
 	    message->string))
+
+(define *channel-prefixes* '(#\# #\& #\! #\+))
 
 ;; <message> ::=
 ;;     [':' <prefix> <SPACE> ] <command> <params> <crlf>
@@ -65,45 +69,40 @@
 
 ;;; internal
 
-(define prefix-object
-  (make-record-type "irc:message:prefix"
-		    '(nick user hostname server raw)
-		    (lambda (obj port) (display "#<irc:message:prefix>" port))))
+(define-record-type <irc:msg:prefix>
+  (_make-prefix nick user hostname server raw)
+  m:prefix?
+  (nick p:nick)
+  (user p:user)
+  (hostname p:hostname)
+  (server p:server)
+  (raw p:raw))
 
-(define message-object
-  (make-record-type "irc:message"
-		    '(prefix command middle trailing time raw)
-		    (lambda (obj port) (display "#<irc:message>" port))))
+(set-record-type-printer! <irc:msg:prefix>
+                          (lambda (obj port)
+                            (display "#<irc:message:prefix>" port)))
 
-(define message?  (record-predicate message-object))
-(define m:prefix? (record-predicate prefix-object))
+(define-record-type <irc:message>
+  (_make-message prefix command middle trailing time raw)
+  message?
+  (prefix m:prefix)
+  (command m:command)
+  (middle m:middle)
+  (trailing m:trailing)
+  (time m:time)
+  (raw m:raw set-m:raw!))
 
-(define m:prefix	 (record-accessor message-object 'prefix))
+(set-record-type-printer! <irc:message>
+                          (lambda (obj port)
+                            (display "#<irc:message " port)
+                            (display (m:raw obj) port)
+                            (write-char #\>)))
 
-(define p:nick		 (record-accessor prefix-object 'nick))
-(define p:user		 (record-accessor prefix-object 'user))
-(define p:hostname	 (record-accessor prefix-object 'hostname))
-(define p:server	 (record-accessor prefix-object 'server))
-(define p:raw		 (record-accessor prefix-object 'raw))
-
-(define-inlinable (m:p:nick msg)		(p:nick (m:prefix msg)))
-(define-inlinable (m:p:user msg)		(p:user (m:prefix msg)))
+(define-inlinable (m:p:nick msg)	(p:nick (m:prefix msg)))
+(define-inlinable (m:p:user msg)	(p:user (m:prefix msg)))
 (define-inlinable (m:p:hostname msg)	(p:hostname (m:prefix msg)))
 (define-inlinable (m:p:server msg)	(p:server (m:prefix msg)))
 (define-inlinable (m:p:raw msg)		(p:raw (m:prefix msg)))
-
-(define* (make-message-object #:key prefix command middle trailing raw time)
-  ((record-constructor message-object)
-   prefix
-   command
-   middle
-   trailing
-   time
-   raw))
-
-(define* (make-prefix-object #:key nick user hostname server raw)
-  ((record-constructor prefix-object)
-   nick user hostname server raw))
 
 (define (parse-prefix str)
   (if (not str)
@@ -111,16 +110,19 @@
       (if (string-contains str "!")
 	  (let ([!loc (string-index str #\!)]
 		[@loc (string-index str #\@)])
-	    (make-prefix-object
-	     #:nick (substring str 0 !loc)
-	     #:user (substring str (+ 1 !loc) @loc)
-	     #:hostname (substring str (+ 1 @loc))
-	     #:raw str))
-	  (make-prefix-object
-	   #:server str
-	   #:raw str))))
-
-(define channel-prefixes '(#\# #\& #\! #\+))
+	    (_make-prefix
+	     (substring str 0 !loc)          ;; nick
+	     (substring str (+ 1 !loc) @loc) ;; user
+	     (substring str (+ 1 @loc))      ;; hostname
+             #f                              ;; server
+	     str))                           ;; raw
+	  (_make-prefix
+	   #f                                ;; nick
+           #f                                ;; user
+           #f                                ;; hostname
+           str                               ;; server
+	   str                               ;; raw
+           ))))
 
 (define (symbolize cmd)
   (if (char-numeric? (string-ref cmd 0))
@@ -145,12 +147,12 @@
 (define (raw msg)
   "Return the unparsed message string. Note that this only works for messages
  constructed useing parse-message-string."
-  ((record-accessor message-object 'raw) msg))
+  (m:raw msg))
 
 ;; external
 
 (define (parse-message-string msg)
-  "Parse irc message string @var{msg} and return an irc-message-object."
+  "Parse irc message string @var{msg} and return an irc-message."
   (define (flatten list)
     (case (length list)
       ((0) #f)
@@ -159,17 +161,18 @@
   (catch #t
     (lambda ()
       (let-values ([(m1 m2) (run-parser-regex msg)])
-	(make-message-object
-	 #:prefix (parse-prefix (match:substring m1 2))
-	 #:command (symbolize (match:substring m1 3))
-	 #:middle (flatten (string-tokenize (match:substring m2 1)))
-	 #:trailing (match:substring m2 2)
-	 #:time (current-time)
-	 #:raw  msg)))
+	(_make-message
+         (parse-prefix (match:substring m1 2))              ;; prefix
+	 (symbolize (match:substring m1 3))                 ;; command 
+	 (flatten (string-tokenize (match:substring m2 1))) ;; middle
+	 (match:substring m2 2)                             ;; trailing 
+	 (current-time)                                     ;; time 
+	 msg                                                ;; raw
+         ))) 
     (lambda (key . args) (throw key "UNHANDLED: ~a" args))))
 
 (define* (make-message #:key command middle trailing)
-  "Create a new irc-message-object.
+  "Create a new irc-message.
 Command: string or number.
 middle: string or list of strings.
 trailing: string."
@@ -195,10 +198,14 @@ trailing: string."
   (let ([cmd (check-command command)]
 	[middle (check-middle middle)]
 	[trailing (check-trailing trailing)])
-    (make-message-object
-     #:command command
-     #:middle middle
-     #:trailing trailing)))
+    (_make-message
+     #f       ;; prefix
+     command  ;; command
+     middle   ;; middle
+     trailing ;; trailing
+     #f       ;; time
+     #f       ;; raw
+     )))
 
 (define (parse-source msg)
   "Find out who send the irc-message."
@@ -227,25 +234,25 @@ trailing: string."
 (define (is-channel? str)
   "Return #t is string @var{str} is a valid channel, #f otherwise."
   (let ([c (string-ref str 0)])
-    (->bool (memq c channel-prefixes))))
+    (->bool (memq c *channel-prefixes*))))
 
 (define (command msg)
   "Return the command. This is either a symbol or a number."
-  ((record-accessor message-object 'command) msg))
+  (m:command msg))
 
 (define (middle msg)
   "Return @var{middle} of the message. This is either a list of strings or
  a string if there is only one middle."
-  ((record-accessor message-object 'middle) msg))
+  (m:middle msg))
 
 (define (trailing msg)
   "Return the trailing part of the message if there is one, #f otherwise."
-  ((record-accessor message-object 'trailing) msg))
+  (m:trailing msg))
 
 (define (time msg)
   "Return the message timestamp (moment at which it was parsed). Time format
  is seconds since epoch."
-  ((record-accessor message-object 'time) msg))
+  (m:time msg))
 
 (define (prefix msg)
   "Return the prefix of irc-message @var{msg}. If the message was send by as server
@@ -278,4 +285,4 @@ trailing: string."
 		   (format #f "~A ~A :~A" (command msg) (middle->string (middle msg))
 			   (trailing msg))
 		   (format #f "~A ~A" (command msg) (middle->string (middle msg))))])
-	  ((record-modifier message-object 'raw) msg str)))))
+	  (set-m:raw! msg str)))))

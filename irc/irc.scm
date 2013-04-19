@@ -24,6 +24,8 @@
   #:use-module (irc tagged-hook)
   #:use-module (irc channel)
   #:use-module (irc error)
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-9 gnu)
   #:use-module (ice-9 format)
   #:use-module (ice-9 rdelim)
   #:use-module (ice-9 popen)
@@ -46,7 +48,7 @@
 	    exists-message-hook?
 	    hostname
 	    in-channel?
-	    irc-object?
+	    irc?
 	    make-irc
 	    nick
 	    password
@@ -93,37 +95,43 @@
 ;; registered   Boolean          #f if not registered
 ;; s-i/o        In/output        Input/output session
 
-(define irc-object
-  (make-record-type
-   "irc"
-   '(channels
-     connected
-     hooks
-     hostname
-     nick
-     port
-     realname
-     server
-     socket
-     session
-     tls
-     registered
-     s-i/o)
-   (lambda (obj port)
-     (format port "#<~A~c irc object>"
-	     ((record-accessor irc-object 'server) obj)
-	     (if ((record-accessor irc-object 'connected) obj)
-		 #\!
-		 #\?)))))
+(define-record-type <irc>
+  (_make-irc
+   channels
+   connected
+   hooks
+   hostname
+   nick
+   port
+   realname
+   server
+   socket
+   session
+   tls
+   registered
+   s-i/o)
+  irc?
+  (channels channels set-channels!)
+  (connected connected? set-connected?!)
+  (hooks hooks set-hooks!)
+  (hostname hostname _set-hostname!)
+  (nick nick _set-nick!)
+  (port port _set-port!)
+  (realname realname _set-realname!)
+  (server server _set-server!)
+  (socket _socket set-socket!)
+  (session session set-session!)
+  (tls tls? set-tls?!)
+  (registered registered? set-registered?!)
+  (s-i/o s-i/o set-s-i/o!))
 
-;;;; Internal procedures
-(define channels	 (record-accessor irc-object 'channels))
-(define hooks		 (record-accessor irc-object 'hooks))
-(define _socket		 (record-accessor irc-object 'socket))
-(define session		 (record-accessor irc-object 'session))
-(define s-i/o            (record-accessor irc-object 's-i/o))
-(define tls?             (record-accessor irc-object 'tls))
-(define registered?      (record-accessor irc-object 'registered))
+(set-record-type-printer! <irc>
+                          (lambda (obj port)
+                            (display "#<irc " port)
+                            (display (server obj) port)
+                            (if (connected? obj)
+                                (display "!>" port)
+                                (display "?>" port))))
 
 (define (symbolize c)
 "Symbolize returns a symbol if @var{c} is a symbol or string, #f otherwise."
@@ -194,23 +202,13 @@
 The default behaviour is to also reset the message-hook. Set handlers
 to #f to disable."
   (channel-clear! (channels obj))
-  ((record-modifier irc-object 'connected) obj #f)
+  (set-connected?! obj #f)
   (and (_socket obj) (close-port (_socket obj)))
-  ((record-modifier irc-object 'socket) obj #f)
-  ((record-modifier irc-object 'registered) obj #f)
-  ((record-modifier irc-object 'session) obj #f)
-  ((record-modifier irc-object 's-i/o) obj #f)
-  ((record-modifier irc-object 'tls) obj #f))
-
-(define (irc-object? obj)
-  ((record-predicate irc-object) obj))
-
-(define nick		 (record-accessor irc-object 'nick))
-(define port		 (record-accessor irc-object 'port))
-(define realname	 (record-accessor irc-object 'realname))
-(define server		 (record-accessor irc-object 'server))
-(define hostname	 (record-accessor irc-object 'hostname))
-(define connected?	 (record-accessor irc-object 'connected))
+  (set-socket! obj #f)
+  (set-registered?! obj #f)
+  (set-session! obj #f)
+  (set-s-i/o! obj #f)
+  (set-tls?! obj #f))
 
 (define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
 		   (port *port*) (hostname *hostname*))
@@ -220,7 +218,7 @@ realname: string
 server: string
 port: integer
 hostname: string."
-  ((record-constructor irc-object)
+  (_make-irc
    (make-channel-table)	;; channels
    #f			;; connected
    (make-tagged-hook)	;; hooks
@@ -247,52 +245,52 @@ hostname: string."
    (else (irc-type-error "in-channel?" 'chan "string or symbol" chan))))
 
 (define (set-port! obj var)
-  "If not yet connected change port to @var{var}."
-  (if (connected? obj)
-      (irc-error "set-port!: impossible to change port when connected.")
+  "If not yet registered change port to @var{var}."
+  (if (registered? obj)
+      (irc-error "set-port!: impossible to change port when registered.")
       (if (< 0 var 65536)
-	  ((record-modifier irc-object 'port) obj var)
+	  (_set-port! obj var)
 	  (irc-error "set-port!: invalid port number."))))
 
 (define (set-server! obj var)
-  "If not yet connected change server to @var{var}."
-  (if (connected? obj)
-      (irc-error "set-server!: impossible to change server when connected.")
+  "If not yet registered change server to @var{var}."
+  (if (registered? obj)
+      (irc-error "set-server!: impossible to change server when registered.")
       (if (= 0 (string-length var))
-	  ((record-modifier irc-object 'server) obj *server*)
-	  ((record-modifier irc-object 'server) obj var))))
+	  (_set-server! obj *server*)
+	  (_set-server! obj var))))
 
 (define (set-realname! obj var)
-  "If not yet connected change realname to @var{var}."
-  (if (connected? obj)
-      (irc-error "set-realname!: impossible to change realname when connected.")
+  "If not yet registered change realname to @var{var}."
+  (if (registered? obj)
+      (irc-error "set-realname!: impossible to change realname when registered.")
       (if (= 0 (string-length var))
-	  ((record-modifier irc-object 'realname) obj *realname*)
-	  ((record-modifier irc-object 'realname) obj var))))
+	  (_set-realname! obj *realname*)
+	  (_set-realname! obj var))))
 
 (define (set-hostname! obj var)
-  "If not yet connected change hostname to @var{var}."
-  (if (connected? obj)
-      (irc-error "set-hostname!: impossible to change hostname when connected.")
+  "If not yet registered change hostname to @var{var}."
+  (if (registered? obj)
+      (irc-error "set-hostname!: impossible to change hostname when registered.")
       (if (= 0 (string-length var))
-	  ((record-modifier irc-object 'hostname) obj *hostname*)
-	  ((record-modifier irc-object 'hostname) obj var))))
+          (_set-hostname! obj *hostname*)
+          (_set-hostname! obj var))))
 
 (define (set-nick! obj var)
-  "If not yet connected change nick to @var{var}."
-  (if (connected? obj)
-      (irc-error "set-nick!: impossible to change nick when connected.")
+  "If not yet registered change nick to @var{var}."
+  (if (registered? obj)
+      (irc-error "set-nick!: impossible to change nick when registered.")
       (if (= 0 (string-length var))
-	  ((record-modifier irc-object 'nick) obj *nick*)
-	  ((record-modifier irc-object 'nick) obj var))))
+          (_set-nick! obj *nick*)
+          (_set-nick! obj var))))
 
 (define (do-nick obj nick)
   "Try to change the nickname into @var{nick}. When the nick is already taken keep the old nick.
 returns #f, else #t."
   (if (not (string? nick))
       (irc-type-error "set-nick!" "string" nick)
-      (if (not (connected? obj))
-	  ((record-modifier irc-object 'nick) obj nick)
+      (if (not (registered? obj))
+          (_set-nick! obj nick)
 	  (do-command obj #:command 'NICK #:middle nick))))
 
 (define (do-connect obj)
@@ -306,10 +304,10 @@ returns #f, else #t."
                (addrinfo:fam ai)
                (sockaddr:addr (addrinfo:addr ai))
                (port ircobj))
-      ((record-modifier irc-object 'socket) ircobj s)
-      ((record-modifier irc-object 'connected) ircobj #t)))
+      (set-socket! ircobj s)
+      (set-connected?! ircobj #t)))
 
-  (if (not (irc-object? obj))
+  (if (not (irc? obj))
       (irc-error "do-connect: expected obj to be an irc-object but got ~a." obj)
       (catch #t
 	(lambda ()
@@ -339,10 +337,10 @@ returns #f, else #t."
 
   (when (not (connected? obj))
       (do-connect obj))
-  ((record-modifier irc-object 'nick) obj (try-nick (nick obj)))
+  (set-nick! obj (try-nick (nick obj)))
   (try-user)
   (when (not (registered? obj))
-    ((record-modifier irc-object 'registered) obj #t)))
+    (set-registered?! obj #t)))
 
 (define* (do-close obj)
   "Close the connection without sending QUIT."
@@ -474,7 +472,8 @@ Procedures will be added to the front of the hook unless append is not #f."
 (define (do-wrap-port/tls obj)
   (let* ([session (gnutls:make-session gnutls:connection-end/client)]
          [s-i/o (tls-wrap (_socket obj) session)])
-    ((record-modifier irc-object 'tls) obj #t)
-    ((record-modifier irc-object 'session) obj session)
-    ((record-modifier irc-object 's-i/o) obj s-i/o)))
+    (set-tls?! obj #t)
+    (set-session! obj session)
+    (set-s-i/o! obj s-i/o)
+))
 

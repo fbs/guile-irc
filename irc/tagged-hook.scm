@@ -17,6 +17,8 @@
 (define-module (irc tagged-hook)
   #:version (0 2 2)
   #:use-module (irc error)
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-9 gnu)
   #:export (make-tagged-hook
 	    tagged-hook?
 	    tagged-hook-empty?
@@ -27,27 +29,23 @@
 	    tagged-hook->list
 	    find-tagged-hook))
 
-(define tagged-hook-object
-  (make-record-type
-   "tagged-hook"
-   '(alist)
-   (lambda (obj port)
-     (display "#<tagged-hook>" port))))
+(define-record-type <tagged-hook>
+  (make-tagged-hook alist)
+  tagged-hook?
+  (alist alist set-alist!))
 
-(define hook:alist (record-accessor tagged-hook-object 'alist))
-(define hook:set-alist! (record-modifier tagged-hook-object 'alist))
+(set-record-type-printer! 
+ <tagged-hook>
+ (lambda (obj port)
+   (display "<tagged-hook>" port)))
 
 (define (make-tagged-hook)
   "Create a new tagged-hook."
-  ((record-constructor tagged-hook-object) '()))
-
-(define (tagged-hook? hook)
-  "Return #t if @var{hook} is a tagged hook, #f otherwise."
-  ((record-predicate tagged-hook-object) hook))
+  (make-tagged-hook '()))
 
 (define (tagged-hook-empty? hook)
   "Return #t if hook @var{hook} is empty, #f otherwise."
-  (null? (hook:alist hook)))
+  (null? (alist hook)))
 
 (define* (add-tagged-hook! hook proc #:optional tag append-p)
   "Add procedure @var{proc} to the hook @var{hook}. Keyword @var{tag} is used to identify
@@ -57,8 +55,8 @@ be used. If @var{append} is true the procedure is added the the end, otherwise
   (if (not (procedure? proc))
       (irc-type-error "add-tagged-hook!" 'proc "procedure" proc)
       (let ([value (if tag (cons tag proc) proc)]
-	    [alist (hook:alist hook)])
-	(hook:set-alist!
+	    [alist (alist hook)])
+	(set-alist!
 	 hook
 	 (if append-p
 	     (append alist (list value))
@@ -66,8 +64,8 @@ be used. If @var{append} is true the procedure is added the the end, otherwise
 
 (define (remove-tagged-hook! hook tag)
   "Remove all hooks with tag @var{tag}. The return value is not specified"
-  (let ([alist (hook:alist hook)])
-    (hook:set-alist! hook
+  (let ([alist (alist hook)])
+    (set-alist! hook
      (filter (lambda (val)
 	       (if (pair? val)
 		   (not (eq? (car val) tag))
@@ -76,12 +74,12 @@ be used. If @var{append} is true the procedure is added the the end, otherwise
 
 (define (reset-tagged-hook! hook)
   "Remove all procedures from hook @var{hook}. The return value is not specified."
-  (hook:set-alist! hook '()))
+  (set-alist! hook '()))
 
 (define (run-tagged-hook hook . args)
   "Apply all procedures in hook @var{hook} in first to last order to the arguments
  @var{arg}. The return value is not specified."
-  (let ([alist (hook:alist hook)])
+  (let ([alist (alist hook)])
     (for-each
      (lambda (val)
        (let ([proc (if (pair? val) (cdr val) val)])
@@ -90,9 +88,9 @@ be used. If @var{append} is true the procedure is added the the end, otherwise
 
 (define (find-tagged-hook hook tag)
   "Return the pair (tag . procedure) if a hook with tag @var{tag} exists, #f otherwise."
-  (let ([alist (hook:alist hook)])
+  (let ([alist (alist hook)])
     (assoc 'c (filter pair? alist))))
 
 (define (tagged-hook->list hook)
   "Convert the hook @var{hook} to a list."
-  (hook:alist hook))
+  (alist hook))
