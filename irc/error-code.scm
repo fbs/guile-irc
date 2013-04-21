@@ -16,9 +16,12 @@
 
 (define-module (irc error-code)
   #:version (0 3 0)
+  #:use-module (irc error)
   #:export (lookup-error-code
 	    error-name
 	    error-description))
+
+(define-error error-invalid 'irc:error-code:invalid)
 
 (define error-table 
   '(
@@ -80,7 +83,7 @@
   (cond
    ((not (number? code)) #f)
    ((< 400 code 503) (cdr (assoc code error-table)))
-   (else #f)))
+   (else (error-invalid "Invalid error code: ~a." code))))
 
 (define (error-name dp)
   (if (pair? dp)
