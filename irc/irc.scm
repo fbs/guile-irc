@@ -1,5 +1,4 @@
-;; Copyright (C) 2012 bas smit (fbs)
-;; Copyright (C) 2013 Andreas W (add^_)
+;; Copyright (C) 2012, 2013 bas smit (fbs)
 ;;
 ;; This program is free software; you can redistribute it and/or
 ;; modify it under the terms of the GNU Lesser General Public License
@@ -19,8 +18,8 @@
   #:version (0 2 2)
   #:use-module ((irc message)
 		#:renamer (symbol-prefix-proc 'msg:))
-  #:use-module ((gnutls)
-                #:renamer (symbol-prefix-proc 'gnutls:))
+  #:use-module ((irc network)
+                #:renamer (symbol-prefix-proc 'nw:))
   #:use-module (irc tagged-hook)
   #:use-module (irc channel)
   #:use-module (irc error)
@@ -65,7 +64,9 @@
 	    set-port!
 	    set-realname!
 	    set-server!
-            do-wrap-port/tls))
+            do-wrap-port/tls
+            data-ready?         
+))
 
 ;;;; Some globals
 (define *nick* "bot")
@@ -77,23 +78,6 @@
 
 (define *max-msgl* 500)
 
-;;;; macros
-
-;;;; Data types
-;; Channels:   Hashmap          containing all the joined channels.
-;; Connected:   Boolean          #t if connected to a server #f otherwise.
-;; Hooks:       Tagged-hook      hooks to run on messages.
-;; Hostname:    String           irc hostname
-;; Nick:        String           irc nickname
-;; password:    String #f        irc password
-;; port:        Integer          irc port
-;; realname:    String           irc realname
-;; server:      String           irc server url
-;; socket:      Socket           Socket
-;; session      Session          Session
-;; tls          Boolean          #t if on, otherwise #f
-;; registered   Boolean          #f if not registered
-;; s-i/o        In/output        Input/output session
 
 (define-record-type <irc>
   (_make-irc
@@ -105,11 +89,9 @@
    port
    realname
    server
-   socket
-   session
-   tls
    registered
-   s-i/o)
+   network
+   )
   irc?
   (channels channels set-channels!)
   (connected connected? set-connected?!)
@@ -119,11 +101,9 @@
   (port port _set-port!)
   (realname realname _set-realname!)
   (server server _set-server!)
-  (socket _socket set-socket!)
-  (session session set-session!)
-  (tls tls? set-tls?!)
   (registered registered? set-registered?!)
-  (s-i/o s-i/o set-s-i/o!))
+  (network network set-network!)
+  )
 
 (set-record-type-printer! <irc>
                           (lambda (obj port)
@@ -177,41 +157,32 @@
 
 (define (send-raw obj str)
   "Send string @var{str} to the server"
-  (let ([msg (string-append str "\r\n")])
-    (if (tls? obj)
-        (display msg (s-i/o obj))
-        (display msg (_socket obj)))))
+  (let ([msg (string-append str "\r\n")]
+        [nw (network obj)])
+    (if (connected? obj)
+        (nw:send nw msg)
+        (irc-error "Not connected."))))
 
 (define (read-message obj)
-  "Read a parsed message from irc-object obj."
+  "Try a read. Returns a parse message or #f."
   (define (delete-return s)
     (string-delete (string->char-set "\r") s))
-  (let* ([i/o (s-i/o obj)]
-         [soc (_socket obj)]
-	 [message (and (char-ready? soc) (if (tls? obj)
-                                             (read-line i/o)
-                                             (read-line soc)))])
-    (cond
-     ((eof-object? message) #f)
-     (message (msg:parse-message-string (delete-return message)))
-     (else #f))))
+  (let ([message (nw:receive (network obj))])
+    (if (not (eof-object? message))
+        (msg:parse-message-string (delete-return message))
+        #f)))
 
-;; TODO - clean up session and CO properly
 (define* (cleanup-irc-object obj)
   "Reset @var{channels}, @var{connected} and socket to their initial value.
 The default behaviour is to also reset the message-hook. Set handlers
 to #f to disable."
   (channel-clear! (channels obj))
   (set-connected?! obj #f)
-  (and (_socket obj) (close-port (_socket obj)))
-  (set-socket! obj #f)
   (set-registered?! obj #f)
-  (set-session! obj #f)
-  (set-s-i/o! obj #f)
-  (set-tls?! obj #f))
+  (nw:close/cleanup (network obj)))
 
 (define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
-		   (port *port*) (hostname *hostname*))
+		   (port *port*) (hostname *hostname*) (ssl #f))
   "Create a new irc object.
 nick: string
 realname: string
@@ -227,11 +198,12 @@ hostname: string."
    port			;; port
    realname		;; realname
    server		;; server
-   #f			;; socket
-   #f                   ;; session
-   #f                   ;; tls
    #f                   ;; registered
-   #f))                 ;; secure i/o
+   (nw:create           ;; network
+    #:address server   
+    #:port port
+    #:ssl ssl)                   
+   ))                 
 
 (define (channels->list obj)
   "Return the channels joined by irc-object @var{obj} as list."
@@ -295,25 +267,8 @@ returns #f, else #t."
 
 (define (do-connect obj)
   "Try to connect object to the specified server."
-  (define (_connect ircobj)
-    (let* ([ai (car (getaddrinfo (server ircobj) "ircd"))]
-	   [s  (socket (addrinfo:fam ai)
-		       (addrinfo:socktype ai)
-		       (addrinfo:protocol ai))])
-      (connect s
-               (addrinfo:fam ai)
-               (sockaddr:addr (addrinfo:addr ai))
-               (port ircobj))
-      (set-socket! ircobj s)
-      (set-connected?! ircobj #t)))
-
-  (if (not (irc? obj))
-      (irc-error "do-connect: expected obj to be an irc-object but got ~a." obj)
-      (catch #t
-	(lambda ()
-	  (_connect obj))
-	(lambda (key . args)
-	  (irc-error "do-connect: failed to connect to server ~a." (server obj))))))
+  (nw:connect (network obj))
+  (set-connected?! obj #t))
 
 (define (do-register obj)
   "Send nick and user commands."
@@ -348,7 +303,7 @@ returns #f, else #t."
 
 (define* (do-quit obj #:key (quit-msg *quitmsg*))
   "Send QUIT to the server and clean up."
-  (if (connected? obj)
+  (if (registered? obj)
       (begin (do-command obj #:command 'QUIT #:trailing quit-msg)
 	     (do-close obj))
       (do-close obj)))
@@ -364,30 +319,29 @@ returns #f, else #t."
 (define (do-listen obj)
   "Return a parsed message (see the message module) if there is data available,
 #f otherwise."
-  (if (not (connected? obj))
-      #f
-      (read-message obj)))
+  (if (data-ready? obj)
+      (read-message obj)
+      #f))
+
+(define (data-ready? obj)
+  (nw:data-ready? (network obj)))
 
 (define (do-wait obj)
   "Wait till data is available."
-  (let loop ([m (do-listen obj)])
-    (if m
-	m
-	(loop (do-listen obj)))))
+  (read-message obj))
 
 (define* (do-join obj chan #:optional pass)
   "Try to join channel @var{chan}."
   (if (not (msg:is-channel? chan))
-      (irc-error "invalid channel" chan))
+      (irc-error "invalid channel:" chan))
   (if pass
       (do-command obj #:command 'JOIN #:middle (string-join (list chan pass) ","))
       (do-command obj #:command 'JOIN #:middle chan))
   (channel-add! (channels obj) chan))
 
 (define (do-runloop obj)
-  (let ([sock (_socket obj)])
-    (while (not (port-closed? sock))
-      (handle-message obj (do-wait obj)))))
+  (while #t
+      (handle-message obj (do-wait obj))))
 
 (define (do-part obj chan)
   "Part channel @var{chan}."
@@ -452,28 +406,4 @@ Procedures will be added to the front of the hook unless append is not #f."
   (reset-tagged-hook! (hooks obj)))
 
 (define handle-message run-message-hook)
-
-(define (tls-wrap port session)
-  "Return PORT wrapped in a TLS connection."
-  (define (log level str)
-    (format (current-error-port)
-            "gnutls: [~a|~a] ~a" (getpid) level str))
-  (gnutls:set-session-transport-fd! session (fileno port))
-  ;;(gnutls:set-session-transport-port! session port)
-  (gnutls:set-session-default-priority! session)
-  (gnutls:set-session-credentials! session (gnutls:make-certificate-credentials))
-  ;; Uncomment the following lines in case of debugging
-  ;; emergency.
-  ;;(gnutls:set-log-level! 10)
-  ;;(gnutls:set-log-procedure! log)
-  (gnutls:handshake session)
-  (gnutls:session-record-port session))
-
-(define (do-wrap-port/tls obj)
-  (let* ([session (gnutls:make-session gnutls:connection-end/client)]
-         [s-i/o (tls-wrap (_socket obj) session)])
-    (set-tls?! obj #t)
-    (set-session! obj session)
-    (set-s-i/o! obj s-i/o)
-))
 
