@@ -21,8 +21,8 @@
 
 (define-syntax irc-error
   (syntax-rules ()
-    ((_ msg args ...)
-     (throw 'irc-error (format #f msg args ...)))))
+    ((_ msg ...)
+     (throw 'irc-error (format #f msg ...)))))
 
 (define-syntax irc-type-error
   (syntax-rules ()
