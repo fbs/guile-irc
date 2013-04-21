@@ -16,19 +16,11 @@
 
 (define-module (irc error)
   #:version (0 3 0)
-  #:export (irc-error
-	    irc-type-error))
+  #:export (define-error))
 
-(define-syntax irc-error
-  (syntax-rules ()
-    ((_ msg ...)
-     (throw 'irc-error (format #f msg ...)))))
+(define-syntax define-error
+  (syntax-rules (args)
+    ((_ name key)
+     (define (name . args)
+       (throw key (apply format (cons #f args)))))))
 
-(define-syntax irc-type-error
-  (syntax-rules ()
-    ((_ origin arg expected got)
-     (throw 'irc-type-error (format #f "~a: argument ~a: expected type ~a, got ~a"
-				    origin arg expected got)))
-    ((_ origin expected got)
-     (throw 'irc-type-error (format #f "~a: expected type ~a, got ~a"
-				    origin expected got)))))
