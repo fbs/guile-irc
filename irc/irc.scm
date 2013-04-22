@@ -184,7 +184,7 @@ to #f to disable."
   (channel-clear! (channels obj))
   (set-connected?! obj #f)
   (set-registered?! obj #f)
-  (nw:close/cleanup (network obj)))
+  (nw:close (network obj)))
 
 (define* (make-irc #:key (nick *nick*) (realname *nick*) (server *server*)
 		   (port *port*) (hostname *hostname*) (ssl #f))

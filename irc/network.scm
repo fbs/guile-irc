@@ -18,7 +18,8 @@
             send
             receive
             data-ready?
-            close/cleanup
+            cleanup
+            (_close . close)
             get-socket
             connected?
             ssl?
@@ -111,20 +112,22 @@ tls: If set to #t use ssl (requires gnutls)"
         (set-connected?! obj #t))
       #t))
 
-(define (close/cleanup obj)
-  "Close the connection and clean the object."
+(define (_close obj)
   (if (get-ssl obj)
       (tls:close/cleanup (get-ssl obj)))
   (close (get-socket obj))
+  (set-socket! obj #f)
+  (set-ssl! obj #f))
+
+(define (cleanup obj)
+  (if (connected? obj)
+      (close obj))
   (set-address! obj #f)
   (set-port! obj #f)
-  (set-socket! obj #f)
   (set-addrinfo! obj #f)
-  (set-ssl! obj #f)
   (set-loghook! obj #f)
-  (set-connected?! obj #f)
-  #t)
- 
+  (set-connected?! obj #f))
+
 (define (send obj msg)
   (if (connected? obj)
       (if (ssl? obj)
