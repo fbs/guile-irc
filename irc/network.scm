@@ -12,6 +12,7 @@
   #:use-module (srfi srfi-11)
   #:use-module (ice-9 rdelim)
   #:use-module ((irc gnutls) #:renamer (symbol-prefix-proc 'tls:))
+  #:use-module (irc error)
   #:export (
             create
             (do-connect . connect)
@@ -24,6 +25,11 @@
             connected?
             ssl?
             ))
+
+;; Errors
+
+(define-error error-eof     'irc:network:eof)
+(define-error error-connect 'irc:network:connect)
 
 ;; Types
 
@@ -106,7 +112,7 @@ tls: If set to #t use ssl (requires gnutls)"
                      (sockaddr:addr (addrinfo:addr ai))
                      (get-port obj)))
           (lambda (key . params)
-            (network-error "Unable to connect to: ~a.")))
+            (error-connect "Unable to connect.")))
         (if (get-ssl obj)
             (tls:handshake (get-ssl obj)))
         (set-connected?! obj #t))
@@ -129,10 +135,12 @@ tls: If set to #t use ssl (requires gnutls)"
   (set-connected?! obj #f))
 
 (define (send obj msg)
+"Try sending data."
   (if (connected? obj)
       (if (ssl? obj)
           (tls:send (get-ssl obj) msg)
-          (display msg (get-socket obj)))))
+          (display msg (get-socket obj)))
+      (error-connect "Not connected")))
 
 (define (receive obj)
 "Try to read a line (using read-line)."
@@ -143,17 +151,15 @@ tls: If set to #t use ssl (requires gnutls)"
         ;; If an eof-object is read the port is closed.
         (if (eof-object? msg)
             (begin
-              (close/cleanup obj)
-              #f ;;Throw error
-              )
+              (_close obj)
+              (error-eof "Unexpected EOF, closing session."))
             msg))
-      ;; TODO: Throw error
-      ))
+      (error-connect "Not connected")))
 
 (define (data-ready? obj)
+"Check if data is available for reading."
   (if (connected? obj)
       (if (ssl? obj)
           (tls:data-ready? (get-ssl obj))
           (char-ready? (get-socket obj)))
-      #f ;; TODO: Throw error
-      ))
+      (error-connect "Not connected")))
