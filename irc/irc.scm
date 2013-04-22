@@ -78,6 +78,11 @@
 
 (define *max-msgl* 500)
 
+(define-error error-connect 'irc:irc:connect)
+(define-error error-type    'irc:irc:type)
+(define-error error-set     'irc:irc:set)
+(define-error error-chan    'irc:irc:channel)
+(define-error error-port    'irc:irc:port)
 
 (define-record-type <irc>
   (_make-irc
@@ -161,7 +166,7 @@
         [nw (network obj)])
     (if (connected? obj)
         (nw:send nw msg)
-        (irc-error "Not connected."))))
+        (error-connect "Not connected."))))
 
 (define (read-message obj)
   "Try a read. Returns a parse message or #f."
@@ -214,20 +219,21 @@ hostname: string."
   (cond
    ((string? chan) (channel-ref (channels obj) chan))
    ((symbol? chan) (channel-ref (channels obj) (symbol->string chan)))
-   (else (irc-type-error "in-channel?" 'chan "string or symbol" chan))))
+   (else 
+    (error-type "in-channel?: Expected string or symbol got ~a." chan))))
 
 (define (set-port! obj var)
   "If not yet registered change port to @var{var}."
   (if (registered? obj)
-      (irc-error "set-port!: impossible to change port when registered.")
+      (error-set "set-port!: impossible to change port when registered.")
       (if (< 0 var 65536)
 	  (_set-port! obj var)
-	  (irc-error "set-port!: invalid port number."))))
+	  (error-port "set-port!: invalid port number."))))
 
 (define (set-server! obj var)
   "If not yet registered change server to @var{var}."
   (if (registered? obj)
-      (irc-error "set-server!: impossible to change server when registered.")
+      (error-set "set-server!: impossible to change server when registered.")
       (if (= 0 (string-length var))
 	  (_set-server! obj *server*)
 	  (_set-server! obj var))))
@@ -235,7 +241,7 @@ hostname: string."
 (define (set-realname! obj var)
   "If not yet registered change realname to @var{var}."
   (if (registered? obj)
-      (irc-error "set-realname!: impossible to change realname when registered.")
+      (error-set "set-realname!: impossible to change realname when registered.")
       (if (= 0 (string-length var))
 	  (_set-realname! obj *realname*)
 	  (_set-realname! obj var))))
@@ -243,7 +249,7 @@ hostname: string."
 (define (set-hostname! obj var)
   "If not yet registered change hostname to @var{var}."
   (if (registered? obj)
-      (irc-error "set-hostname!: impossible to change hostname when registered.")
+      (error-set "set-hostname!: impossible to change hostname when registered.")
       (if (= 0 (string-length var))
           (_set-hostname! obj *hostname*)
           (_set-hostname! obj var))))
@@ -251,7 +257,7 @@ hostname: string."
 (define (set-nick! obj var)
   "If not yet registered change nick to @var{var}."
   (if (registered? obj)
-      (irc-error "set-nick!: impossible to change nick when registered.")
+      (error-set "set-nick!: impossible to change nick when registered.")
       (if (= 0 (string-length var))
           (_set-nick! obj *nick*)
           (_set-nick! obj var))))
@@ -260,7 +266,7 @@ hostname: string."
   "Try to change the nickname into @var{nick}. When the nick is already taken keep the old nick.
 returns #f, else #t."
   (if (not (string? nick))
-      (irc-type-error "set-nick!" "string" nick)
+      (error-type "do-nick?: Expected string got: ~a." nick)
       (if (not (registered? obj))
           (_set-nick! obj nick)
 	  (do-command obj #:command 'NICK #:middle nick))))
@@ -333,7 +339,7 @@ returns #f, else #t."
 (define* (do-join obj chan #:optional pass)
   "Try to join channel @var{chan}."
   (if (not (msg:is-channel? chan))
-      (irc-error "invalid channel:" chan))
+      (error-chan "invalid channel: ~a" chan))
   (if pass
       (do-command obj #:command 'JOIN #:middle (string-join (list chan pass) ","))
       (do-command obj #:command 'JOIN #:middle chan))
