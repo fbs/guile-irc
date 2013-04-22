@@ -8,7 +8,7 @@
 
 (define (main args)
   (if (<  (length args) 2)
-      (format #t "Usage: ./~a hostname port channel ssl(0/1)." (car args))
+      (format #t "Usage: ./~a hostname port channel ssl(0/1).\n" (car args))
       (let ([a1 (cadr args)]
             [a2 (caddr args)]
             [a3 (cadddr args)]
