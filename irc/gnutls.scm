@@ -8,7 +8,7 @@
 ;; A small wrapper around guile-gnutls
 
 (define-module (irc gnutls)
-  #:version (0 0 1)
+  #:version (0 3 0)
   #:use-module ((gnutls) #:renamer (symbol-prefix-proc 'tls:))
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)

@@ -15,7 +15,7 @@
 ;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 (define-module (irc tagged-hook)
-  #:version (0 2 2)
+  #:version (0 3 0)
   #:use-module (irc error)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)

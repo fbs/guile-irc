@@ -6,7 +6,7 @@
 ;; of the License, or (at your option) any later version.
 
 (define-module (irc network)
-  #:version (0 0 0)
+  #:version (0 3 0)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
   #:use-module (ice-9 rdelim)
