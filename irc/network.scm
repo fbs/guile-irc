@@ -54,8 +54,8 @@
        (display "!>" port)
        (display "?>" port))))
 
-(define (ssl? obj) 
-  (->bool (ssl? obj)))
+(define (ssl? obj)
+  (->bool (get-ssl obj)))
 
 ;; Private
 
