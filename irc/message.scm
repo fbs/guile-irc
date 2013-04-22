@@ -166,7 +166,7 @@
 	 (current-time)                                     ;; time 
 	 msg                                                ;; raw
          ))) 
-    (lambda (key .args)
+    (lambda (key . args)
       (error-parsing "parsing failed; UNHANDLED: ~a" args))))
 
 (define* (make-message #:key command middle trailing)
