@@ -37,22 +37,6 @@
 (define *priority* "NORMAL")
 (define *dh-bits* 1024)
 
-;; Syntax Magic
-
-(define-syntax ssl-error
-  (syntax-rules ()
-    ((_ msg)
-     (throw 'ssl-error msg))
-    ((_ msg ...)
-     (throw 'ssl-error (format #f msg ...)))))
-
-(define-syntax ssl-type-error
-  (syntax-rules ()
-    ((_ func expect)
-     (throw 'ssl-error (format #f "~a: expected type ~a" func expect)))
-    ((_ func expect got)
-     (throw 'ssl-error (format #f "~a: expected type ~a, got ~a" func expect got)))))
-
 ;; Custom types
 
 (define-record-type <ssl>
