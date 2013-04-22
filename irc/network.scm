@@ -9,6 +9,7 @@
   #:version (0 3 0)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
+  #:use-module (srfi srfi-11)
   #:use-module (ice-9 rdelim)
   #:use-module ((irc gnutls) #:renamer (symbol-prefix-proc 'tls:))
   #:export (
@@ -65,6 +66,12 @@
 (define (disable-gnutls-debug)
   (tls:disable-global-logging!))
 
+(define (get-ai-sock address family)
+  (let ([ai (car (getaddrinfo address "ircd" family))])
+    (values ai (socket (addrinfo:fam ai)
+                         (addrinfo:socktype ai)
+                         (addrinfo:protocol ai)))))
+
 ;; Public
 
 (define* (create #:key (address "localhost") (port 6697) (family PF_INET) (ssl #f))
@@ -73,10 +80,7 @@ address: Address to connect.
 port: port to connect to.
 family: Socket family (see manual  7.2.11)
 tls: If set to #t use ssl (requires gnutls)"
-  (let* ([ai (car (getaddrinfo address "ircd" family))]
-         [sock  (socket (addrinfo:fam ai)
-                     (addrinfo:socktype ai)
-                     (addrinfo:protocol ai))])
+  (let-values ([(ai sock) (get-ai-sock address family)])
     (make-network
      address ;; address
      port    ;; port
