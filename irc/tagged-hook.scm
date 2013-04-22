@@ -29,6 +29,8 @@
 	    tagged-hook->list
 	    find-tagged-hook))
 
+(define-error error-type 'irc:tagged-hook:add)
+
 (define-record-type <tagged-hook>
   (make-tagged-hook alist)
   tagged-hook?
@@ -53,7 +55,7 @@ the handler and is needed to remove the handler. If @var{tag} is #f no tag will
 be used. If @var{append} is true the procedure is added the the end, otherwise
  it is added to the front. The return value is not specified."
   (if (not (procedure? proc))
-      (irc-type-error "add-tagged-hook!" 'proc "procedure" proc)
+      (error-type "Expected proc to be of type procedure.")
       (let ([value (if tag (cons tag proc) proc)]
 	    [alist (alist hook)])
 	(set-alist!
