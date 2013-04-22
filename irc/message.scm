@@ -16,11 +16,6 @@
 
 ;; with some help with dsmith from #guile
 
-;;;;;;;;;;; TODO
-;;
-;; -fix all error/throw statements.
-;;
-;;;;;;;;;;;
 
 (define-module (irc message)
   #:version (0 3 0)
@@ -33,6 +28,7 @@
 		 #:select (let-values))
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
+  #:use-module (irc error)
   #:export (command
 	    middle
 	    trailing
@@ -49,6 +45,8 @@
 
 (define *channel-prefixes* '(#\# #\& #\! #\+))
 
+(define-error error-parsing 'irc:message:parser)
+(define-error error-type     'irc:message:message)
 ;; <message> ::=
 ;;     [':' <prefix> <SPACE> ] <command> <params> <crlf>
 ;; <prefix> ::=
@@ -168,7 +166,8 @@
 	 (current-time)                                     ;; time 
 	 msg                                                ;; raw
          ))) 
-    (lambda (key . args) (throw key "UNHANDLED: ~a" args))))
+    (lambda (key .args)
+      (error-parsing "parsing failed; UNHANDLED: ~a" args))))
 
 (define* (make-message #:key command middle trailing)
   "Create a new irc-message.
@@ -182,17 +181,19 @@ trailing: string."
      ((string? cmd) (string->symbol (string-upcase cmd)))
      ((or (number? cmd)
 	  (symbol? cmd)) cmd)
-     (else (throw 'irc-message-error))))
+     (else 
+      (error-type "Expected command to be of type symbol or string or number."))))
   (define (check-middle middle)
     (cond
      ((not middle) #f)
-     ((and (list? middle)
-	   (typecheck-list string? middle)) (throw 'irc-message-error))
+     ((and (list? middle) (typecheck-list string? middle))
+      (error-type "Expected middle to be of type string or '(string)."))
      ((string? middle) middle)
-     (else (throw 'irc-message-error))))
+     (else 
+      (error-type "Expected middle to be of type string or '(string)."))))
   (define (check-trailing trail)
     (if (and trail (not (string? trail)))
-	(throw 'irc-message-error)
+        (error-type "Expected trailing to be of string.")
 	trail))
   (let ([cmd (check-command command)]
 	[middle (check-middle middle)]
