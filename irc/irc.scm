@@ -118,6 +118,7 @@
                                 (display "!>" port)
                                 (display "?>" port))))
 
+;; Test
 (define (symbolize c)
 "Symbolize returns a symbol if @var{c} is a symbol or string, #f otherwise."
   (cond
