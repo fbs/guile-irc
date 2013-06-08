@@ -4,7 +4,7 @@ AC_INIT(guile-irc, 0.2)
 AC_CONFIG_SRCDIR(irc/irc.scm)
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([color-tests -Wall -Wno-portability foreign])
-AM_SILENT_RULES([yes])		
+AM_SILENT_RULES([yes])
 
 GUILE_PROGS
 
@@ -14,11 +14,23 @@ if $GUILE_TOOLS | grep -q compile; then
 else
    AC_MSG_ERROR([Guile 2.0 required.])
 fi
-if gnutls-cli --help | grep -q USAGE:; then
-   # good, it seems to be installed
-   true
-else
-   AC_MSG_ERROR([GnuTLS required])
+
+AC_ARG_ENABLE([gnutls],
+     [  --enable-gnutls    Turn on gnutls],
+     [case "${enableval}" in
+       yes) gnutls=true ;;
+       no)  gnutls=false ;;
+       *) AC_MSG_ERROR([bad value ${enableval} for --enable-gnutls]) ;;
+     esac],[gnutls=false])
+     AM_CONDITIONAL([GNUTLS], [test x$gnutls = xtrue])
+
+if $GNUTLS ; then
+   if gnutls-cli --help | grep -q USAGE:; then
+      # good, seems to be installed
+      true
+   else
+      AC_MSG_ERROR([GnuTLS required])
+   fi
 fi
 
 AC_CONFIG_FILES([Makefile] [doc/Makefile])
