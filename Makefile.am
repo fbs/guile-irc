@@ -11,6 +11,13 @@ SOURCES = \
 	irc/tagged-hook.scm \
 	irc/irc.scm \
 	irc/handlers.scm
+if GNUTLS
+SOURCES += \
+	irc/gnutls.scm \
+	irc/network.scm
+else
+SOURCES += 
+endif
 
 info_TEXINFOS = doc/api.texi
 
