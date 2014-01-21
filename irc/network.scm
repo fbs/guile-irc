@@ -74,7 +74,7 @@
   (tls:disable-global-logging!))
 
 (define (get-ai-sock address family)
-  (let ([ai (car (getaddrinfo address "ircd" family))])
+  (let ([ai (car (getaddrinfo address "irc" family))])
     (values ai (socket (addrinfo:fam ai)
                          (addrinfo:socktype ai)
                          (addrinfo:protocol ai)))))
