@@ -25,7 +25,7 @@ AC_ARG_ENABLE([gnutls],
      AM_CONDITIONAL([GNUTLS], [test x$gnutls = xtrue])
 
 if $GNUTLS ; then
-   if gnutls-cli --help | grep -q USAGE:; then
+   if gnutls-cli --help | grep -qi USAGE:; then
       # good, seems to be installed
       true
    else
